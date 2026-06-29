@@ -1,0 +1,17 @@
+{
+  "name": "Sistema Gestión F&B Hostelería",
+  "short_name": "Gestión F&B",
+  "description": "Sistema de gestión financiera para hostelería y restauración",
+  "start_url": "sistema_gestion_fb_v2.html",
+  "display": "standalone",
+  "background_color": "#f5f5f3",
+  "theme_color": "#185FA5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fork%20and%20knife/3D/fork_and_knife_3d.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

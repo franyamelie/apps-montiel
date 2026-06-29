@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#185FA5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gestión F&B">
+<meta name="application-name" content="Gestión F&B">
+<link rel="manifest" href="manifest-fb.json">
+<title>Sistema de Gestión F&B — Hostelería</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1rem}
+.app{max-width:1100px;margin:0 auto}
+h1{font-size:18px;font-weight:500;margin-bottom:1rem;color:#1a1a18}
+.tabs{display:flex;gap:2px;border-bottom:1px solid #d3d1c7;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab{padding:7px 12px;font-size:12px;cursor:pointer;color:#888780;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;white-space:nowrap}
+.tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:500}
+.tab:hover:not(.active){color:#1a1a18}
+.section{font-size:11px;font-weight:500;color:#888780;letter-spacing:.06em;text-transform:uppercase;margin:1.1rem 0 .5rem}
+.card{background:#fff;border:1px solid #d3d1c7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.lbl{font-size:12px;color:#5f5e5a}
+input,select{border:1px solid #d3d1c7;border-radius:6px;padding:6px 10px;font-size:13px;background:#fff;color:#1a1a18;width:100%}
+input:focus,select:focus{outline:none;border-color:#185FA5}
+.month-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center}
+.month-lbl{font-size:12px;color:#5f5e5a;white-space:nowrap}
+.btn{padding:7px 14px;font-size:12px;border-radius:6px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:#185FA5;color:#fff;border:none}
+.btn-primary:hover{background:#0c447c}
+.btn-ghost{background:none;border:1px solid #888780;color:#1a1a18}
+.btn-ghost:hover{background:#f1efe8}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px;margin-bottom:.875rem}
+.stat{background:#f1efe8;border-radius:6px;padding:.65rem .875rem}
+.stat-n{font-size:17px;font-weight:500}
+.stat-l{font-size:11px;color:#888780;margin-top:2px}
+.pos{color:#3B6D11}.neg{color:#A32D2D}
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.tbl th{font-size:10.5px;color:#888780;font-weight:500;text-align:right;padding:4px 5px;border-bottom:1px solid #b4b2a9}
+.tbl th:first-child{text-align:left}
+.tbl td{padding:3px 5px;border-bottom:1px solid #d3d1c7;text-align:right;color:#5f5e5a}
+.tbl td:first-child{text-align:left;color:#1a1a18}
+.tbl tr.total td{font-weight:500;color:#1a1a18;background:#f1efe8}
+.tbl tr.result td{font-weight:500}
+.tbl tr.result.pos td{color:#3B6D11;background:#EAF3DE}
+.tbl tr.result.neg td{color:#A32D2D;background:#FCEBEB}
+.alert-box{border-radius:6px;padding:.55rem .8rem;font-size:12px;margin-bottom:.65rem;display:flex;gap:7px;align-items:center}
+.alert-ok{background:#EAF3DE;border:1px solid #639922;color:#3B6D11}
+.alert-warn{background:#FAEEDA;border:1px solid #BA7517;color:#854F0B}
+.alert-err{background:#FCEBEB;border:1px solid #E24B4A;color:#A32D2D}
+.alert-info{background:#E6F1FB;border:1px solid #378ADD;color:#185FA5}
+hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
+.tip{font-size:11px;color:#888780;margin-top:3px;font-style:italic}
+.chart-wrap{position:relative;height:220px;margin-top:.5rem}
+.be-bar{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.be-bar-bg{flex:1;background:#f1efe8;border-radius:20px;height:10px;overflow:hidden}
+.be-bar-fill{height:100%;border-radius:20px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>📊 Sistema de Gestión F&B — Hostelería</h1>
+<div class="tabs">
+  <button class="tab active" onclick="showTab('plan')">⚙ Config.</button>
+  <button class="tab" onclick="showTab('ventas')">📈 Ventas</button>
+  <button class="tab" onclick="showTab('gastos')">🧾 Gastos</button>
+  <button class="tab" onclick="showTab('graficos')">📉 Gráficos</button>
+  <button class="tab" onclick="showTab('breakeven')">🎯 Break-even</button>
+  <button class="tab" onclick="showTab('pyg')">📄 P y G</button>
+  <button class="tab" onclick="showTab('tesoreria')">💰 Tesorería</button>
+  <button class="tab" onclick="showTab('balance')">⚖ Balance</button>
+</div>
+<div id="tab-plan">
+  <div class="card">
+    <div class="section" style="margin-top:0">Empresa</div>
+    <div class="grid2">
+      <div class="field"><span class="lbl">Nombre del negocio</span><input type="text" id="nombre" value="Mi Restaurante"></div>
+      <div class="field"><span class="lbl">Forma jurídica</span><select id="sociedad"><option value="no">Autónomo (IRPF 19%)</option><option value="si">Sociedad (IS 25%)</option></select></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section" style="margin-top:0">Capital y préstamo</div>
+    <div class="grid2">
+      <div class="field"><span class="lbl">Capital aportado (€)</span><input type="number" id="capital" value="20000" min="0" step="100"></div>
+      <div class="field"><span class="lbl">Stock de seguridad (€)</span><input type="number" id="stock_seg" value="500" min="0" step="100"></div>
+    </div>
+    <hr>
+    <div class="lbl" style="margin-bottom:7px">Préstamo bancario (dejar a 0 si no aplica)</div>
+    <div class="grid3">
+      <div class="field"><span class="lbl">Importe (€)</span><input type="number" id="prestamo" value="0" min="0" step="100"></div>
+      <div class="field"><span class="lbl">Interés anual (%)</span><input type="number" id="interes" value="5" min="0" step="0.1"></div>
+      <div class="field"><span class="lbl">Plazo (años)</span><input type="number" id="plazo" value="5" min="1"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section" style="margin-top:0">Inmovilizado</div>
+    <div class="grid2">
+      <div class="field"><span class="lbl">Gastos constitución (€)</span><input type="number" id="inv_const" value="2000" min="0" step="100"></div>
+      <div class="field"><span class="lbl">Amortización (años)</span><input type="number" id="am_const" value="5" min="1"></div>
+    </div>
+    <div class="grid2" style="margin-top:7px">
+      <div class="field"><span class="lbl">Inmovilizado material (€)</span><input type="number" id="inv_mat" value="15000" min="0" step="100"></div>
+      <div class="field"><span class="lbl">Amortización (años)</span><input type="number" id="am_mat" value="10" min="1"></div>
+    </div>
+    <div class="grid2" style="margin-top:7px">
+      <div class="field"><span class="lbl">Inmovilizado inmaterial (€)</span><input type="number" id="inv_inm" value="3000" min="0" step="100"></div>
+      <div class="field"><span class="lbl">Amortización (años)</span><input type="number" id="am_inm" value="5" min="1"></div>
+    </div>
+    <div class="grid2" style="margin-top:7px">
+      <div class="field"><span class="lbl">Fianzas / inmov. financiero (€)</span><input type="number" id="inv_fin" value="1000" min="0" step="100"></div>
+      <div class="field"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section" style="margin-top:0">Personal</div>
+    <div id="personal-lista"></div>
+    <button class="btn btn-primary" onclick="addTrabajador()" style="margin-top:8px">+ Añadir trabajador</button>
+    <div class="tip">SS empresa ~30% · SS trabajador ~6.35% · IRPF estimado según tramos</div>
+  </div>
+  <div style="display:flex;justify-content:flex-end">
+    <button class="btn btn-primary" onclick="calcular()">↻ Calcular todo</button>
+  </div>
+</div>
+<div id="tab-ventas" style="display:none">
+  <div class="grid2">
+    <div class="card"><div class="section" style="margin-top:0">Ventas mensuales (€)</div><div class="month-grid" id="ventas-grid"></div></div>
+    <div class="card"><div class="section" style="margin-top:0">Compras / aprovisionamiento (€)</div><div class="month-grid" id="compras-grid"></div></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" onclick="calcular()">↻ Recalcular</button></div>
+</div>
+<div id="tab-gastos" style="display:none">
+  <div class="card">
+    <div class="section" style="margin-top:0">Gastos fijos mensuales (€)</div>
+    <div class="grid3">
+      <div class="field"><span class="lbl">Alquiler</span><input type="number" id="g-alquiler" value="1200" min="0"></div>
+      <div class="field"><span class="lbl">Agua y luz</span><input type="number" id="g-luz" value="300" min="0"></div>
+      <div class="field"><span class="lbl">Teléfono</span><input type="number" id="g-tel" value="80" min="0"></div>
+      <div class="field"><span class="lbl">Publicidad</span><input type="number" id="g-pub" value="150" min="0"></div>
+      <div class="field"><span class="lbl">Servicios contratados</span><input type="number" id="g-serv" value="200" min="0"></div>
+      <div class="field"><span class="lbl">Otros suministros</span><input type="number" id="g-otros" value="100" min="0"></div>
+      <div class="field"><span class="lbl">Tributos (IAE…)</span><input type="number" id="g-trib" value="50" min="0"></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card"><div class="section" style="margin-top:0">Ingresos extraordinarios (€)</div><div class="month-grid" id="ing-ext-grid"></div></div>
+    <div class="card"><div class="section" style="margin-top:0">Gastos extraordinarios (€)</div><div class="month-grid" id="gst-ext-grid"></div></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" onclick="calcular()">↻ Recalcular</button></div>
+</div>
+<div id="tab-graficos" style="display:none">
+  <div class="card"><div class="section" style="margin-top:0">Ventas, gastos y resultado neto</div><div class="chart-wrap"><canvas id="chart-pyg"></canvas></div></div>
+  <div class="card"><div class="section" style="margin-top:0">Saldo de tesorería mes a mes</div><div class="chart-wrap"><canvas id="chart-tes"></canvas></div></div>
+  <div class="card">
+    <div class="section" style="margin-top:0">Estructura de costes anual</div>
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+      <div style="position:relative;width:160px;height:160px;flex-shrink:0"><canvas id="chart-costes"></canvas></div>
+      <div id="costes-leyenda" style="font-size:12px;display:flex;flex-direction:column;gap:5px"></div>
+    </div>
+  </div>
+</div>
+<div id="tab-breakeven" style="display:none">
+  <div id="be-alert"></div>
+  <div class="stat-grid" id="be-stats"></div>
+  <div class="card"><div class="section" style="margin-top:0">Cobertura mensual vs umbral</div><div id="be-barras"></div></div>
+  <div class="card"><div class="section" style="margin-top:0">Curva de break-even anual</div><div class="chart-wrap"><canvas id="chart-be"></canvas></div></div>
+  <div class="card"><div class="section" style="margin-top:0">Detalle mensual</div><div style="overflow-x:auto"><table class="tbl" id="be-tabla"></table></div></div>
+</div>
+<div id="tab-pyg" style="display:none">
+  <div class="stat-grid" id="pyg-stats"></div>
+  <div id="pyg-alert"></div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem"><button class="btn btn-ghost" onclick="exportPDF('pyg')">📄 Exportar PDF</button></div>
+  <div class="card" style="overflow-x:auto"><table class="tbl" id="pyg-tabla"></table></div>
+</div>
+<div id="tab-tesoreria" style="display:none">
+  <div class="stat-grid" id="tes-stats"></div>
+  <div id="tes-alert"></div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem"><button class="btn btn-ghost" onclick="exportPDF('tes')">📄 Exportar PDF</button></div>
+  <div class="card" style="overflow-x:auto"><table class="tbl" id="tes-tabla"></table></div>
+</div>
+<div id="tab-balance" style="display:none">
+  <div class="stat-grid" id="bal-stats"></div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem"><button class="btn btn-ghost" onclick="exportPDF('bal')">📄 Exportar PDF</button></div>
+  <div class="card" style="overflow-x:auto"><table class="tbl" id="bal-tabla"></table></div>
+</div>
+</div>
+<script>
+const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const MESES_F=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let trabajadores=[{cat:'Cocinero',sueldo:18000},{cat:'Camarero',sueldo:15000}];
+let D={};let charts={};
+function fmt(n){return n.toLocaleString('es-ES',{minimumFractionDigits:0,maximumFractionDigits:0})+'€';}
+function fmtd(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+'€';}
+function tot(arr){return arr.reduce((a,b)=>a+b,0);}
+function clr(n){return n>=0?'#3B6D11':'#A32D2D';}
+function showTab(t){
+  ['plan','ventas','gastos','graficos','breakeven','pyg','tesoreria','balance'].forEach(id=>{document.getElementById('tab-'+id).style.display=id===t?'':'none';});
+  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['plan','ventas','gastos','graficos','breakeven','pyg','tesoreria','balance'][i]===t);});
+  if(t==='graficos')setTimeout(renderCharts,50);
+  if(t==='breakeven')renderBreakeven();
+  if(['pyg','tesoreria','balance'].includes(t))calcular();
+}
+function buildMonthGrid(cid,prefix,def=0){
+  const c=document.getElementById(cid);if(!c||c.children.length>0)return;
+  MESES_F.forEach((m,i)=>{const l=document.createElement('span');l.className='month-lbl';l.textContent=m;const inp=document.createElement('input');inp.type='number';inp.id=prefix+i;inp.value=def;inp.min=0;inp.step=100;c.appendChild(l);c.appendChild(inp);});
+}
+function addTrabajador(){trabajadores.push({cat:'',sueldo:16000});renderPersonal();}
+function removeTrabajador(i){trabajadores.splice(i,1);renderPersonal();}
+function renderPersonal(){
+  const c=document.getElementById('personal-lista');
+  if(!trabajadores.length){c.innerHTML='<div style="font-size:13px;color:#888780;padding:.4rem 0">Sin personal.</div>';return;}
+  c.innerHTML=trabajadores.map((t,i)=>`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:7px;align-items:center;margin-bottom:5px"><input type="text" value="${t.cat}" placeholder="Categoría" onchange="trabajadores[${i}].cat=this.value"><input type="number" value="${t.sueldo}" min="0" step="500" onchange="trabajadores[${i}].sueldo=parseFloat(this.value)||0"><button onclick="removeTrabajador(${i})" style="background:none;border:1px solid #E24B4A;color:#A32D2D;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px">✕</button></div>`).join('');
+}
+function getArr(prefix){return MESES.map((_,i)=>parseFloat(document.getElementById(prefix+i)?.value)||0);}
+function gv(id){return parseFloat(document.getElementById(id)?.value)||0;}
+function calcular(){
+  const capital=gv('capital'),prestamo=gv('prestamo'),interes=gv('interes')/100,plazo=gv('plazo')||5;
+  const stock_seg=gv('stock_seg'),sociedad=document.getElementById('sociedad').value==='si';
+  const inv_const=gv('inv_const'),am_const=gv('am_const')||5,inv_mat=gv('inv_mat'),am_mat=gv('am_mat')||10;
+  const inv_inm=gv('inv_inm'),am_inm=gv('am_inm')||5,inv_fin=gv('inv_fin');
+  const g_alq=gv('g-alquiler'),g_luz=gv('g-luz'),g_tel=gv('g-tel'),g_pub=gv('g-pub'),g_serv=gv('g-serv'),g_otros=gv('g-otros'),g_trib=gv('g-trib');
+  const ventas=getArr('v'),compras=getArr('c'),ing_ext=getArr('ie'),gst_ext=getArr('ge');
+  const amort_mes=(inv_const/(am_const*12))+(inv_mat/(am_mat*12))+(inv_inm/(am_inm*12));
+  const cuota=prestamo>0?prestamo*(interes/12)/(1-Math.pow(1+interes/12,-plazo*12)):0;
+  const int_mes=prestamo>0?prestamo*interes/12:0,dev_mes=cuota-int_mes;
+  let total_sb=0,total_ss_e=0,total_ss_t=0,total_irpf=0,total_neto=0;
+  trabajadores.forEach(t=>{const sb=t.sueldo,ss_e=sb*0.30,ss_t=sb*0.0635,irpf=sb*(sb<15000?0.12:sb<22000?0.15:0.19);total_sb+=sb;total_ss_e+=ss_e;total_ss_t+=ss_t;total_irpf+=irpf;total_neto+=(sb-ss_t-irpf);});
+  const personal_mes=(total_sb+total_ss_e)/12,nominas_mes=total_neto/12,ss_emp_mes=total_ss_e/12,ss_t_mes=total_ss_t/12,irpf_mes=total_irpf/12;
+  const otros_mes=g_alq+g_luz+g_tel+g_pub+g_serv+g_otros+g_trib;
+  const ebit=MESES.map((_,i)=>ventas[i]-compras[i]-personal_mes-otros_mes-amort_mes);
+  const ord=MESES.map((_,i)=>ebit[i]-int_mes);
+  const bai=MESES.map((_,i)=>ord[i]+ing_ext[i]-gst_ext[i]);
+  const imp=bai.map(b=>b>0?b*(sociedad?0.25:0.19):0);
+  const bdi=bai.map((b,i)=>b-imp[i]);
+  let saldo=capital+prestamo;
+  const totInv=inv_const+inv_mat+inv_inm+inv_fin;
+  const pagoInv=MESES.map(()=>0);if(totInv>0)pagoInv[0]=totInv+stock_seg;
+  const cobros=ventas.map((v,i)=>v+ing_ext[i]);
+  const pagos_tot=MESES.map((_,i)=>nominas_mes+ss_emp_mes+ss_t_mes+irpf_mes+compras[i]+otros_mes+cuota+gst_ext[i]+pagoInv[i]);
+  const saldos=[];MESES.forEach((_,i)=>{saldo+=cobros[i]-pagos_tot[i];saldos.push(saldo);});
+  const amortAcum=MESES.map((_,i)=>(i+1)*amort_mes);
+  const inmovNeto=MESES.map((_,i)=>Math.max(0,(inv_const+inv_mat+inv_inm)-amortAcum[i]));
+  const bdi_acum=MESES.map((_,i)=>tot(bdi.slice(0,i+1)));
+  const deuda_lp=MESES.map((_,i)=>Math.max(0,prestamo-(i+1)*dev_mes));
+  const activo=MESES.map((_,i)=>inmovNeto[i]+inv_fin+stock_seg+saldos[i]);
+  const pasivo=MESES.map((_,i)=>capital+bdi_acum[i]+deuda_lp[i]);
+  const nombre=document.getElementById('nombre').value||'Mi Restaurante';
+  D={ventas,compras,ing_ext,gst_ext,ebit,ord,bai,imp,bdi,saldos,cobros,pagos_tot,pagoInv,personal_mes,otros_mes,amort_mes,int_mes,cuota,dev_mes,nominas_mes,ss_emp_mes,ss_t_mes,irpf_mes,capital,prestamo,totInv,inv_fin,stock_seg,inmovNeto,bdi_acum,deuda_lp,activo,pasivo,nombre,g_alq,g_luz,g_tel,g_pub,g_serv,g_otros,g_trib,sociedad,total_sb,total_ss_e};
+  renderPyG();renderTesoreria();renderBalance();
+}
+function renderPyG(){
+  const d=D,tV=tot(d.ventas),tB=tot(d.bdi),fc=tV>0?(tot(d.compras)/tV*100).toFixed(1):'—';
+  document.getElementById('pyg-stats').innerHTML=`<div class="stat"><div class="stat-n">${fmt(tV)}</div><div class="stat-l">Facturación anual</div></div><div class="stat"><div class="stat-n" style="color:${clr(tB)}">${fmt(tB)}</div><div class="stat-l">Resultado neto</div></div><div class="stat"><div class="stat-n">${fc}%</div><div class="stat-l">Food cost</div></div><div class="stat"><div class="stat-n">${fmt(d.personal_mes*12)}</div><div class="stat-l">Personal/año</div></div>`;
+  const mn=d.bdi.filter(v=>v<0).length;const al=document.getElementById('pyg-alert');
+  if(mn===0)al.innerHTML=`<div class="alert-box alert-ok">✓ Resultado positivo en todos los meses.</div>`;
+  else if(mn<6)al.innerHTML=`<div class="alert-box alert-warn">⚠ ${mn} mes(es) con pérdidas.</div>`;
+  else al.innerHTML=`<div class="alert-box alert-err">✕ Más de la mitad de los meses en pérdidas.</div>`;
+  const rows=[['Ventas / ingresos',d.ventas,''],['TOTAL INGRESOS',d.ventas,'total'],['— Aprovisionamientos',d.compras,''],['— Personal',MESES.map(()=>d.personal_mes),''],['— Otros gastos',MESES.map(()=>d.otros_mes),''],['— Amortizaciones',MESES.map(()=>d.amort_mes),''],['RESULT. EXPLOTACIÓN',d.ebit,'result'],['— Gastos financieros',MESES.map(()=>d.int_mes),''],['RESULTADO ORDINARIO',d.ord,'result'],['+ Ing. extraordinarios',d.ing_ext,''],['— Gst. extraordinarios',d.gst_ext,''],['BENEFICIO ANTES IMP.',d.bai,'result'],['— Impuesto',d.imp,''],['BENEFICIO NETO',d.bdi,'result']];
+  document.getElementById('pyg-tabla').innerHTML=`<thead><tr><th>Concepto</th>${MESES.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead><tbody>${rows.map(([lbl,vals,cls])=>{const s=tot(vals);const rc=cls==='result'?(s>=0?' pos':' neg'):'';return`<tr class="${cls}${rc}"><td>${lbl}</td>${vals.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${fmt(s)}</td></tr>`;}).join('')}</tbody>`;
+}
+function renderTesoreria(){
+  const d=D,mn=d.saldos.filter(s=>s<0).length;
+  document.getElementById('tes-stats').innerHTML=`<div class="stat"><div class="stat-n" style="color:${clr(d.saldos[11])}">${fmt(d.saldos[11])}</div><div class="stat-l">Saldo final año</div></div><div class="stat"><div class="stat-n">${fmt(tot(d.cobros))}</div><div class="stat-l">Total cobros</div></div><div class="stat"><div class="stat-n">${fmt(tot(d.pagos_tot))}</div><div class="stat-l">Total pagos</div></div><div class="stat"><div class="stat-n" style="color:${mn===0?'#3B6D11':'#A32D2D'}">${mn}</div><div class="stat-l">Meses saldo neg.</div></div>`;
+  const al=document.getElementById('tes-alert');
+  if(mn===0)al.innerHTML=`<div class="alert-box alert-ok">✓ Liquidez positiva en todos los meses.</div>`;
+  else al.innerHTML=`<div class="alert-box alert-warn">⚠ ${mn} mes(es) con tesorería negativa.</div>`;
+  const ini=MESES.map((_,i)=>i===0?d.capital+d.prestamo:d.saldos[i-1]);
+  const rows=[['Saldo inicial',ini,'total'],['Cobros por ventas',d.ventas,''],['Ingresos extraordinarios',d.ing_ext,''],['TOTAL COBROS',d.cobros,'total'],['Inversión / inmovilizado',d.pagoInv,''],['Compras',d.compras,''],['Nóminas y SS',MESES.map(()=>d.nominas_mes+d.ss_emp_mes+d.ss_t_mes+d.irpf_mes),''],['Otros gastos',MESES.map(()=>d.otros_mes),''],['Cuota préstamo',MESES.map(()=>d.cuota),''],['Gastos extraordinarios',d.gst_ext,''],['TOTAL PAGOS',d.pagos_tot,'total'],['SALDO TESORERÍA',d.saldos,'result']];
+  document.getElementById('tes-tabla').innerHTML=`<thead><tr><th>Concepto</th>${MESES.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead><tbody>${rows.map(([lbl,vals,cls])=>{const s=tot(vals);const rc=cls==='result'?(d.saldos[11]>=0?' pos':' neg'):'';return`<tr class="${cls}${rc}"><td>${lbl}</td>${vals.map(v=>`<td style="${v<0?'color:#A32D2D':''}">${fmt(v)}</td>`).join('')}<td>${fmt(s)}</td></tr>`;}).join('')}</tbody>`;
+}
+function renderBalance(){
+  const d=D;
+  document.getElementById('bal-stats').innerHTML=`<div class="stat"><div class="stat-n">${fmt(d.activo[11])}</div><div class="stat-l">Activo total (dic)</div></div><div class="stat"><div class="stat-n">${fmt(d.capital+d.bdi_acum[11])}</div><div class="stat-l">Fondos propios (dic)</div></div><div class="stat"><div class="stat-n">${fmt(d.deuda_lp[11])}</div><div class="stat-l">Deuda pendiente (dic)</div></div>`;
+  const rows=[['Inmovilizado neto',d.inmovNeto,''],['Inmov. financiero',MESES.map(()=>d.inv_fin),''],['Stock',MESES.map(()=>d.stock_seg),''],['Tesorería',d.saldos,''],['TOTAL ACTIVO',d.activo,'total'],['Capital suscrito',MESES.map(()=>d.capital),''],['P&G acumulado',d.bdi_acum,''],['FONDOS PROPIOS',MESES.map((_,i)=>d.capital+d.bdi_acum[i]),'total'],['Deuda largo plazo',d.deuda_lp,''],['TOTAL PASIVO',d.pasivo,'total']];
+  document.getElementById('bal-tabla').innerHTML=`<thead><tr><th>Concepto</th>${MESES.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody>${rows.map(([lbl,vals,cls])=>`<tr class="${cls}"><td>${lbl}</td>${vals.map(v=>`<td style="${v<0?'color:#A32D2D':''}">${fmt(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function renderCharts(){
+  if(!D.ventas)calcular();const d=D;
+  const gastosTot=MESES.map((_,i)=>d.personal_mes+d.otros_mes+d.amort_mes+d.int_mes+d.compras[i]);
+  destroyChart('pyg');charts['pyg']=new Chart(document.getElementById('chart-pyg'),{type:'bar',data:{labels:MESES,datasets:[{label:'Ventas',data:d.ventas,backgroundColor:'#378ADD44',borderColor:'#378ADD',borderWidth:1.5,borderRadius:3},{label:'Gastos totales',data:gastosTot,backgroundColor:'#E24B4A33',borderColor:'#E24B4A',borderWidth:1.5,borderRadius:3},{label:'Resultado neto',data:d.bdi,type:'line',borderColor:'#639922',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#888780'}}},scales:{x:{ticks:{font:{size:10},color:'#888780'},grid:{color:'#d3d1c744'}},y:{ticks:{font:{size:10},color:'#888780',callback:v=>fmt(v)},grid:{color:'#d3d1c744'}}}}});
+  destroyChart('tes');const sc=d.saldos.map(s=>s>=0?'#378ADD55':'#E24B4A55');charts['tes']=new Chart(document.getElementById('chart-tes'),{type:'bar',data:{labels:MESES,datasets:[{label:'Saldo tesorería',data:d.saldos,backgroundColor:sc,borderColor:d.saldos.map(s=>s>=0?'#378ADD':'#E24B4A'),borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},color:'#888780'},grid:{color:'#d3d1c744'}},y:{ticks:{font:{size:10},color:'#888780',callback:v=>fmt(v)},grid:{color:'#d3d1c744'}}}}});
+  const costes=[{lbl:'Compras',val:tot(d.compras),col:'#378ADD'},{lbl:'Personal',val:d.personal_mes*12,col:'#1D9E75'},{lbl:'Alquiler',val:d.g_alq*12,col:'#D85A30'},{lbl:'Suministros',val:(d.g_luz+d.g_tel)*12,col:'#BA7517'},{lbl:'Publicidad',val:d.g_pub*12,col:'#D4537E'},{lbl:'Otros',val:(d.g_serv+d.g_otros+d.g_trib)*12,col:'#888780'},{lbl:'Amortización',val:d.amort_mes*12,col:'#534AB7'},{lbl:'Financiero',val:d.int_mes*12,col:'#5DCAA5'}].filter(x=>x.val>0);
+  destroyChart('costes');charts['costes']=new Chart(document.getElementById('chart-costes'),{type:'doughnut',data:{labels:costes.map(c=>c.lbl),datasets:[{data:costes.map(c=>c.val),backgroundColor:costes.map(c=>c.col+'cc'),borderColor:costes.map(c=>c.col),borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+  const tC=tot(costes.map(c=>c.val));document.getElementById('costes-leyenda').innerHTML=costes.map(c=>`<div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:${c.col};flex-shrink:0"></span><span style="color:#5f5e5a">${c.lbl}</span><span style="margin-left:auto;font-weight:500">${tC>0?(c.val/tC*100).toFixed(1):'0'}%</span></div>`).join('');
+}
+function renderBreakeven(){
+  if(!D.ventas)calcular();const d=D;
+  const fc_avg=tot(d.compras)/(tot(d.ventas)||1),mc=1-fc_avg;
+  const cf_mes=d.personal_mes+d.otros_mes+d.amort_mes+d.int_mes;
+  const be_mes=mc>0?cf_mes/mc:0,be_anual=be_mes*12,va=tot(d.ventas);
+  const cob=be_anual>0?(va/be_anual*100):0,seg=va-be_anual;
+  const acum=d.ventas.reduce((acc,v,i)=>{acc.push((acc[i-1]||0)+v);return acc;},[]);
+  const mbe=acum.findIndex(a=>a>=be_anual);
+  document.getElementById('be-stats').innerHTML=`<div class="stat"><div class="stat-n">${fmt(be_mes)}</div><div class="stat-l">Umbral mensual</div></div><div class="stat"><div class="stat-n">${fmt(be_anual)}</div><div class="stat-l">Umbral anual</div></div><div class="stat"><div class="stat-n" style="color:${cob>=100?'#3B6D11':'#A32D2D'}">${cob.toFixed(0)}%</div><div class="stat-l">Cobertura</div></div><div class="stat"><div class="stat-n" style="color:${clr(seg)}">${fmt(seg)}</div><div class="stat-l">Margen seguridad</div></div><div class="stat"><div class="stat-n">${(mc*100).toFixed(1)}%</div><div class="stat-l">Margen contrib.</div></div><div class="stat"><div class="stat-n">${mbe>=0?MESES[mbe]:'No alcanzado'}</div><div class="stat-l">Mes equilibrio</div></div>`;
+  const al=document.getElementById('be-alert');
+  if(cob>=120)al.innerHTML=`<div class="alert-box alert-ok">✓ Muy por encima del umbral (${cob.toFixed(0)}%). Margen sólido.</div>`;
+  else if(cob>=100)al.innerHTML=`<div class="alert-box alert-info">ℹ Por encima del umbral, pero con margen ajustado.</div>`;
+  else al.innerHTML=`<div class="alert-box alert-err">✕ Por debajo del punto de equilibrio. Faltan ${fmt(be_anual-va)} de facturación.</div>`;
+  document.getElementById('be-barras').innerHTML=d.ventas.map((v,i)=>{const p=be_mes>0?Math.min(100,v/be_mes*100):0;const ok=v>=be_mes;return`<div class="be-bar"><span style="font-size:11px;color:#888780;min-width:28px">${MESES[i]}</span><div class="be-bar-bg"><div class="be-bar-fill" style="width:${p.toFixed(1)}%;background:${ok?'#639922':'#E24B4A'}"></div></div><span style="font-size:11px;min-width:50px;text-align:right;color:${ok?'#3B6D11':'#A32D2D'}">${fmt(v)}</span><span style="font-size:10px;color:#888780;min-width:34px">${p.toFixed(0)}%</span></div>`;}).join('');
+  const maxV=Math.max(va*1.2,be_anual*1.3),steps=20,xs=Array.from({length:steps+1},(_,i)=>i*(maxV/steps));
+  const ctot=xs.map(x=>cf_mes*12+x*fc_avg);
+  destroyChart('be');charts['be']=new Chart(document.getElementById('chart-be'),{type:'line',data:{labels:xs.map(v=>fmt(v)),datasets:[{label:'Ingresos',data:xs,borderColor:'#639922',borderWidth:2,pointRadius:0,tension:0},{label:'Costes totales',data:ctot,borderColor:'#E24B4A',borderWidth:2,pointRadius:0,tension:0,borderDash:[4,3]},{label:'Ventas proyectadas',data:Array(steps+1).fill(va),borderColor:'#378ADD',borderWidth:1.5,pointRadius:0,tension:0,borderDash:[6,4]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#888780'}}},scales:{x:{ticks:{font:{size:9},color:'#888780',maxTicksLimit:8},grid:{color:'#d3d1c733'}},y:{ticks:{font:{size:9},color:'#888780',callback:v=>fmt(v)},grid:{color:'#d3d1c733'}}}}});
+  document.getElementById('be-tabla').innerHTML=`<thead><tr><th>Mes</th><th>Ventas</th><th>Umbral mensual</th><th>Diferencia</th><th>Cobertura</th></tr></thead><tbody>${d.ventas.map((v,i)=>{const dif=v-be_mes;const p=be_mes>0?(v/be_mes*100).toFixed(0):0;return`<tr><td>${MESES_F[i]}</td><td>${fmt(v)}</td><td>${fmt(be_mes)}</td><td style="color:${clr(dif)}">${fmt(dif)}</td><td style="color:${dif>=0?'#3B6D11':'#A32D2D'}">${p}%</td></tr>`;}).join('')}</tbody>`;
+}
+function exportPDF(tipo){
+  if(!D.ventas)calcular();const d=D;
+  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const nombre=d.nombre||'Mi Restaurante';
+  const titulo=tipo==='pyg'?'Cuenta de Resultados':tipo==='tes'?'Presupuesto de Tesorería':'Balance Previsional';
+  doc.setFontSize(16);doc.setTextColor(40);doc.text(`${nombre} — ${titulo}`,14,14);
+  doc.setFontSize(9);doc.setTextColor(120);doc.text(`Generado el ${new Date().toLocaleDateString('es-ES')}`,14,20);
+  let body=[];
+  if(tipo==='pyg'){const rows=[['Ventas',d.ventas],['TOTAL INGRESOS',d.ventas],['— Aprovisionamientos',d.compras],['— Personal',MESES.map(()=>d.personal_mes)],['— Otros gastos',MESES.map(()=>d.otros_mes)],['— Amortizaciones',MESES.map(()=>d.amort_mes)],['RESULT. EXPLOTACIÓN',d.ebit],['— Gastos financieros',MESES.map(()=>d.int_mes)],['RESULTADO ORDINARIO',d.ord],['+ Ing. extraordinarios',d.ing_ext],['— Gst. extraordinarios',d.gst_ext],['BENEFICIO ANTES IMP.',d.bai],['— Impuesto',d.imp],['BENEFICIO NETO',d.bdi]];body=rows.map(([l,v])=>[l,...v.map(x=>fmtd(x)),fmtd(tot(v))]);}
+  else if(tipo==='tes'){const ini=MESES.map((_,i)=>i===0?d.capital+d.prestamo:d.saldos[i-1]);const rows=[['Saldo inicial',ini],['Cobros por ventas',d.ventas],['Ing. extraordinarios',d.ing_ext],['TOTAL COBROS',d.cobros],['Inversión',d.pagoInv],['Compras',d.compras],['Nóminas y SS',MESES.map(()=>d.nominas_mes+d.ss_emp_mes+d.ss_t_mes+d.irpf_mes)],['Otros gastos',MESES.map(()=>d.otros_mes)],['Cuota préstamo',MESES.map(()=>d.cuota)],['Gst. extraordinarios',d.gst_ext],['TOTAL PAGOS',d.pagos_tot],['SALDO TESORERÍA',d.saldos]];body=rows.map(([l,v])=>[l,...v.map(x=>fmtd(x)),fmtd(tot(v))]);}
+  else{const rows=[['Inmovilizado neto',d.inmovNeto],['Inmov. financiero',MESES.map(()=>d.inv_fin)],['Stock',MESES.map(()=>d.stock_seg)],['Tesorería',d.saldos],['TOTAL ACTIVO',d.activo],['Capital',MESES.map(()=>d.capital)],['P&G acumulado',d.bdi_acum],['FONDOS PROPIOS',MESES.map((_,i)=>d.capital+d.bdi_acum[i])],['Deuda largo plazo',d.deuda_lp],['TOTAL PASIVO',d.pasivo]];body=rows.map(([l,v])=>[l,...v.map(x=>fmtd(x))]);}
+  doc.autoTable({head:[[tipo==='bal'?'Concepto':'Concepto',...MESES,...(tipo!=='bal'?['Total']:[])]],body,startY:24,styles:{fontSize:7,cellPadding:1.5},headStyles:{fillColor:[24,95,165],textColor:255,fontSize:7},alternateRowStyles:{fillColor:[245,247,250]},columnStyles:{0:{cellWidth:35}}});
+  doc.save(`${nombre.replace(/\s+/g,'_')}_${tipo.toUpperCase()}.pdf`);
+}
+buildMonthGrid('ventas-grid','v',5000);
+buildMonthGrid('compras-grid','c',1500);
+buildMonthGrid('ing-ext-grid','ie',0);
+buildMonthGrid('gst-ext-grid','ge',0);
+renderPersonal();calcular();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "Parte Diario — FRAN (CHÓFER)",
+  "short_name": "Parte Diario",
+  "description": "Gestión de partes diarios de trabajo Talleres Montiel S.L.",
+  "start_url": "parte_diario_completo_2024_2026.html",
+  "display": "standalone",
+  "background_color": "#f5f5f3",
+  "theme_color": "#185FA5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Spiral%20calendar/3D/spiral_calendar_3d.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
