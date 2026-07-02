@@ -131,12 +131,18 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
     </div>
   </div>
   <div id="parte-preview" style="display:none" class="preview-box"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.5rem;flex-wrap:wrap">
-    <button id="btn-cancelar" class="btn btn-ghost" onclick="cancelarEdicion()" style="display:none;border-color:#E24B4A;color:#A32D2D">Cancelar</button>
-    <button class="btn btn-ghost" style="background:#25D366;color:#fff;border-color:#25D366" onclick="compartirDia()">WhatsApp</button>
-    <button class="btn btn-ghost" onclick="compartirDiaEmail()">Email</button>
-    <button class="btn btn-ghost" onclick="exportDiaPDFFormulario()">PDF del dia</button>
-    <button id="btn-guardar" class="btn btn-primary" onclick="guardarParte()">Guardar parte</button>
+  <div style="display:flex;gap:8px;justify-content:space-between;margin-top:.5rem;flex-wrap:wrap;align-items:center">
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;cursor:pointer">
+      <input type="checkbox" id="chk-importes-nuevo" checked onchange="actualizarPreview()" style="width:auto"> Con importes
+    </label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="btn-cancelar" class="btn btn-ghost" onclick="cancelarEdicion()" style="display:none;border-color:#E24B4A;color:#A32D2D">Cancelar</button>
+      <button class="btn btn-ghost" style="background:#25D366;color:#fff;border-color:#25D366" onclick="compartirDia()">WhatsApp</button>
+      <button class="btn btn-ghost" onclick="compartirDiaEmail()">Email</button>
+      <button class="btn btn-ghost" onclick="exportDiaPDFFormulario()">PDF del dia</button>
+      <button class="btn btn-ghost" onclick="exportDiaImagenFormulario()">Imagen</button>
+      <button id="btn-guardar" class="btn btn-primary" onclick="guardarParte()">Guardar parte</button>
+    </div>
   </div>
 </div>
 
@@ -321,24 +327,25 @@ function buildParteObj(){
 }
 
 function renderPreview(imp,tramos){
+  var conImp=document.getElementById('chk-importes-nuevo')?.checked!==false;
   var box=document.getElementById('parte-preview');
   box.style.display='block';
   var t=imp.t||getT(new Date().toISOString().slice(0,7));
   var lines=[];
-  if(imp.td>0) lines.push('<span><strong>Dietas:</strong> '+fmt2(imp.td)+' &euro;</span>');
+  if(conImp&&imp.td>0) lines.push('<span><strong>Dietas:</strong> '+fmt2(imp.td)+' &euro;</span>');
   if(tramos&&tramos.length>0){
     tramos.forEach(function(tr){
       if(tr.horas<=0) return;
       var rate=tr.tipo==='nocturna'?t.hnocturna:(tr.tipo==='festiva'||tr.tipo==='normal_fest')?t.hfestiva:t.hnormal;
       var label=tr.tipo==='nocturna'?'Extras nocturnas':tr.tipo==='festiva'?'Extras festivas':tr.tipo==='normal_fest'?'Normales festivo':'Extras normales';
-      lines.push('<span><strong>'+label+':</strong> '+tr.horas+'h &times; '+fmt2(rate)+'&euro; = '+fmt2(tr.horas*rate)+' &euro;</span>');
+      if(conImp) lines.push('<span><strong>'+label+':</strong> '+tr.horas+'h &times; '+fmt2(rate)+'&euro; = '+fmt2(tr.horas*rate)+' &euro;</span>');
     });
-  } else if(imp.he>0){
+  } else if(conImp&&imp.he>0){
     lines.push('<span><strong>H. extras:</strong> '+fmt2(imp.he)+' &euro;</span>');
   }
-  if(imp.vc>0) lines.push('<span><strong>V. cami&oacute;n:</strong> '+fmt2(imp.vc)+' &euro;</span>');
-  if(imp.vco>0) lines.push('<span><strong>V. coche:</strong> '+fmt2(imp.vco)+' &euro;</span>');
-  lines.push('<span style="font-weight:700;color:#185FA5">Total d&iacute;a: '+fmt2(imp.total)+' &euro;</span>');
+  if(conImp&&imp.vc>0) lines.push('<span><strong>V. cami&oacute;n:</strong> '+fmt2(imp.vc)+' &euro;</span>');
+  if(conImp&&imp.vco>0) lines.push('<span><strong>V. coche:</strong> '+fmt2(imp.vco)+' &euro;</span>');
+  if(conImp) lines.push('<span style="font-weight:700;color:#185FA5">Total d&iacute;a: '+fmt2(imp.total)+' &euro;</span>');
   box.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:8px 16px">'+lines.join('')+'</div>';
 }
 
@@ -516,7 +523,7 @@ function calcRango(dias,pdm){
     var impD=dieta*t.dieta,impT=impH+vc*t.vcamion+vco*t.vcoche+impD;
     totD+=dieta;totHN+=hn;totHNo+=hno;totHF+=hf;totHNF+=hnf;totVC+=vc;totVCo+=vco;totImpH+=impH;totImpD+=impD;totImpT+=impT;
     return{ds:ds,dia:DIAS_ES[dw],dieta:dieta,hn:hn,hno:hno,hf:hf,hnf:hnf,vc:vc,vco:vco,impH:impH,impD:impD,impT:impT,tienePartes:pds.length>0};
-  }).filter(function(r){return r!==null&&r.tienePartes&&(r.impT>0||r.hn>0||r.hno>0||r.hf>0||r.hnf>0||r.vc>0||r.vco>0||r.dieta>0);});
+  }).filter(function(r){return r!==null&&r.tienePartes;});
   return{rows:rows,totD:totD,totHN:totHN,totHNo:totHNo,totHF:totHF,totHNF:totHNF,totVC:totVC,totVCo:totVCo,totImpH:totImpH,totImpD:totImpD,totImpT:totImpT};
 }
 
@@ -812,9 +819,9 @@ function exportDiaPDFPorParte(p,conImp){
   doc.save('Parte_'+p.fecha+'_FRAN.pdf');
 }
 
-function exportDiaImagenPorId(id,conImp){
+function exportDiaImagenPorId(id,conImp,parteDirecto){
   if(conImp===undefined) conImp=true;
-  var p=partes.find(function(x){return x.id===id;});
+  var p=parteDirecto||partes.find(function(x){return x.id===id;});
   if(!p){alert('Parte no encontrado');return;}
   var imp=calcImporte(p);var t=imp.t||getT(p.fecha.slice(0,7));
   var content='<div style="background:#185FA5;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;margin:-20px -20px 16px">'
@@ -904,9 +911,11 @@ document.getElementById('total-count').textContent=partes.length;
 addTramo();
 
 // Botones formulario que usan el formulario actual
-function compartirDia(){var p=buildParteObj();var conImp=true;window.open('https://wa.me/?text='+encodeURIComponent(buildTextoResumenDia(p,conImp)),'_blank');}
-function compartirDiaEmail(){var p=buildParteObj();var asunto='Parte diario '+p.fecha.split('-').reverse().join('.')+' - '+p.nombre;window.location.href='mailto:?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(buildTextoResumenDia(p,true));}
-function exportDiaPDFFormulario(){exportDiaPDFPorParte(buildParteObj(),true);}
+function getConImpNuevo(){return document.getElementById('chk-importes-nuevo')?.checked!==false;}
+function compartirDia(){var p=buildParteObj();window.open('https://wa.me/?text='+encodeURIComponent(buildTextoResumenDia(p,getConImpNuevo())),'_blank');}
+function compartirDiaEmail(){var p=buildParteObj();var conImp=getConImpNuevo();var asunto='Parte diario '+p.fecha.split('-').reverse().join('.')+' - '+p.nombre;window.location.href='mailto:?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(buildTextoResumenDia(p,conImp));}
+function exportDiaPDFFormulario(){exportDiaPDFPorParte(buildParteObj(),getConImpNuevo());}
+function exportDiaImagenFormulario(){exportDiaImagenPorId(buildParteObj().id,getConImpNuevo(),buildParteObj());}
 </script>
 </body>
 </html>
