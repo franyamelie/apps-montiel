@@ -784,51 +784,59 @@ function exportDiaPDFPorParte(p, conImp=true){
 }
 
 function exportDiaImagenPorId(id, conImp=true){
-  // Find the card element and capture it
-  const cards=document.querySelectorAll('.parte-card');
-  let targetCard=null;
-  // We need to build a temp div with the parte info
   const p=partes.find(x=>x.id===id);
   if(!p){alert('Parte no encontrado');return;}
   const imp=calcImporte(p);
   const t=imp.t||getT(p.fecha.slice(0,7));
-  // Build a printable div
+
+  // Build fixed header part
+  let html_content = '<div style="background:#185FA5;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;margin:-20px -20px 16px">'
+    + '<div style="font-size:16px;font-weight:600">PARTE DIARIO DE TRABAJO</div>'
+    + '<div style="font-size:12px;margin-top:3px">'+p.fecha.split('-').reverse().join('.')+' - '+p.dia+' | '+p.nombre+' | Talleres Montiel S.L.</div>'
+    + '</div>'
+    + '<div style="margin-bottom:8px"><strong>Lugar:</strong> '+(p.lugar||'-')+'</div>'
+    + '<div style="margin-bottom:8px"><strong>Horario:</strong> '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' ('+p.horas+'h)</div>';
+
+  if(p.trabajo){
+    html_content += '<div style="margin-bottom:12px;padding:8px;background:#f5f5f3;border-radius:6px;font-size:13px;white-space:pre-wrap">'+p.trabajo+'</div>';
+  }
+
+  // Build liquidacion part
+  if(conImp){
+    let liq = '<div style="border-top:2px solid #185FA5;padding-top:12px;margin-top:4px">'
+      + '<div style="font-weight:600;color:#185FA5;margin-bottom:8px">LIQUIDACION DEL DIA</div>';
+
+    if(p.dieta>0){
+      liq += '<div style="display:flex;justify-content:space-between;padding:3px 0">'+p.dieta+' dieta'+(p.dieta>1?'s':'')+' x '+fmt2(t.dieta)+' EUR = <strong>'+fmt2(imp.td)+' EUR</strong></div>';
+    }
+    if(p.tramos&&p.tramos.length>0){
+      p.tramos.forEach(tr=>{
+        if(tr.horas<=0) return;
+        const rate=tr.tipo==='nocturna'?t.hnocturna:tr.tipo==='festiva'||tr.tipo==='normal_fest'?t.hfestiva:t.hnormal;
+        const lbl=tr.tipo==='nocturna'?'h extras nocturnas':tr.tipo==='festiva'?'h extras festivas':tr.tipo==='normal_fest'?'h normales festivo':'h extras normales';
+        liq += '<div style="display:flex;justify-content:space-between;padding:3px 0">'+tr.horas+' '+lbl+' x '+fmt2(rate)+' EUR = <strong>'+fmt2(tr.horas*rate)+' EUR</strong></div>';
+      });
+    } else if(p.extras>0){
+      const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
+      const lbl=p.tipo_extra==='nocturna'?'h extras nocturnas':p.tipo_extra==='festiva'?'h extras festivas':'h extras normales';
+      liq += '<div style="display:flex;justify-content:space-between;padding:3px 0">'+p.extras+' '+lbl+' x '+fmt2(rate)+' EUR = <strong>'+fmt2(imp.he)+' EUR</strong></div>';
+    }
+    if(p.vcamion>0){
+      liq += '<div style="display:flex;justify-content:space-between;padding:3px 0">'+p.vcamion+' viaje'+(p.vcamion>1?'s':'')+' camion x '+fmt2(t.vcamion)+' EUR = <strong>'+fmt2(imp.vc)+' EUR</strong></div>';
+    }
+    if(p.vcoche>0){
+      liq += '<div style="display:flex;justify-content:space-between;padding:3px 0">'+p.vcoche+' viaje'+(p.vcoche>1?'s':'')+' coche x '+fmt2(t.vcoche)+' EUR = <strong>'+fmt2(imp.vco)+' EUR</strong></div>';
+    }
+    liq += '<div style="border-top:1px solid #185FA5;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#185FA5">'
+      + '<span>TOTAL DIA</span><span>'+fmt2(imp.total)+' EUR</span></div></div>';
+    html_content += liq;
+  }
+
   const div=document.createElement('div');
   div.style.cssText='position:fixed;top:-9999px;left:-9999px;background:#fff;padding:20px;width:600px;font-family:system-ui,sans-serif;color:#1a1a18;border-radius:12px';
-  div.innerHTML=`
-    <div style="background:#185FA5;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;margin:-20px -20px 16px">
-      <div style="font-size:16px;font-weight:600">PARTE DIARIO DE TRABAJO</div>
-      <div style="font-size:12px;margin-top:3px">${p.fecha.split('-').reverse().join('.')} - ${p.dia} | ${p.nombre} | Talleres Montiel S.L.</div>
-    </div>
-    <div style="margin-bottom:8px"><strong>Lugar:</strong> ${p.lugar||'-'}</div>
-    <div style="margin-bottom:8px"><strong>Horario:</strong> ${p.hinicio||''}${p.hfin?' - '+p.hfin:''} (${p.horas}h)</div>
-    ${p.trabajo?`<div style="margin-bottom:12px;padding:8px;background:#f5f5f3;border-radius:6px;font-size:13px;white-space:pre-wrap">${p.trabajo}</div>`:''}
-    `+(conImp?`    <div style="border-top:2px solid #185FA5;padding-top:12px;margin-top:4px">
-      <div style="font-weight:600;color:#185FA5;margin-bottom:8px">LIQUIDACION DEL DIA</div>
-      ${p.dieta>0?`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.dieta} dieta${p.dieta>1?'s':''} x ${fmt2(t.dieta)} EUR = <strong>${fmt2(imp.td)} EUR</strong></div>`:''}
-      ${(()=>{
-        let r='';
-        if(p.tramos&&p.tramos.length>0){
-          p.tramos.forEach(tr=>{
-            if(tr.horas<=0) return;
-            const rate=tr.tipo==='nocturna'?t.hnocturna:tr.tipo==='festiva'||tr.tipo==='normal_fest'?t.hfestiva:t.hnormal;
-            const lbl=tr.tipo==='nocturna'?'h extras nocturnas':tr.tipo==='festiva'?'h extras festivas':tr.tipo==='normal_fest'?'h normales festivo':'h extras normales';
-            r+=`<div style="display:flex;justify-content:space-between;padding:3px 0">${tr.horas} ${lbl} x ${fmt2(rate)} EUR = <strong>${fmt2(tr.horas*rate)} EUR</strong></div>`;
-          });
-        } else if(p.extras>0){
-          const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
-          const lbl=p.tipo_extra==='nocturna'?'h extras nocturnas':p.tipo_extra==='festiva'?'h extras festivas':'h extras normales';
-          r+=`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.extras} ${lbl} x ${fmt2(rate)} EUR = <strong>${fmt2(imp.he)} EUR</strong></div>`;
-        }
-        return r;
-      })()}
-      ${p.vcamion>0?`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.vcamion} viaje${p.vcamion>1?'s':''} camion x ${fmt2(t.vcamion)} EUR = <strong>${fmt2(imp.vc)} EUR</strong></div>`:''}
-      ${p.vcoche>0?`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.vcoche} viaje${p.vcoche>1?'s':''} coche x ${fmt2(t.vcoche)} EUR = <strong>${fmt2(imp.vco)} EUR</strong></div>`:''}
-      <div style="border-top:1px solid #185FA5;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#185FA5">
-        <span>TOTAL DIA</span><span>${fmt2(imp.total)} EUR</span>
-      </div>
-    </div>`;`:'')+`
-    document.body.appendChild(div);
+  div.innerHTML=html_content;
+  document.body.appendChild(div);
+
   const loadImg=()=>{
     html2canvas(div,{backgroundColor:'#fff',scale:2,useCORS:true,logging:false}).then(canvas=>{
       document.body.removeChild(div);
@@ -848,177 +856,4 @@ function exportDiaImagenPorId(id, conImp=true){
   }
 }
 
-document.getElementById('p-fecha').value=new Date().toISOString().slice(0,10);
-document.getElementById('total-count').textContent=partes.length;
-addTramo(); // Start with one empty tramo row
-
-// ═══════════════════════════════════════════════
-// COMPARTIR DÍA (WhatsApp / Email / PDF)
-// ═══════════════════════════════════════════════
-function buildParteObjFromForm(){
-  const fecha=gs('p-fecha')||new Date().toISOString().slice(0,10);
-  const d=new Date(fecha+'T12:00:00');
-  return{id:editandoId||Date.now(),fecha,dia:DIAS[d.getDay()],nombre:gs('p-nombre'),lugar:gs('p-lugar'),
-    hinicio:gs('p-hinicio'),hfin:gs('p-hfin'),trabajo:gs('p-trabajo'),
-    horas:gv('p-horas'),extras:gv('p-extras'),vcamion:gv('p-vcamion'),vcoche:gv('p-vcoche'),
-    dieta:parseInt(gs('p-dieta')),tipo_extra:gs('p-tipo-extra')};
-}
-
-function buildTextoResumenDia(p, conImp=true){
-  const imp=calcImporte(p);
-  const t=getT(p.fecha.slice(0,7));
-  const sep='-------------------';
-  const L=[];
-  L.push('PARTE DIARIO - '+p.fecha.split('-').reverse().join('.')+' ('+p.dia+')');
-  L.push('Trabajador: '+p.nombre);
-  L.push('Lugar: '+(p.lugar||'-'));
-  L.push('Horario: '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' | '+p.horas+'h');
-  if(p.trabajo){L.push('');L.push('Trabajo realizado:');L.push(p.trabajo);}
-  if(conImp){
-    L.push('');L.push(sep);
-    if(p.dieta>0) L.push(p.dieta+' dieta'+(p.dieta>1?'s':'')+' x '+fmt2(t.dieta)+' EUR = '+fmt2(imp.td)+' EUR');
-    if(p.tramos&&p.tramos.length>0){
-      p.tramos.forEach(tr=>{
-        if(tr.horas<=0) return;
-        const rate=tr.tipo==='nocturna'?t.hnocturna:tr.tipo==='festiva'||tr.tipo==='normal_fest'?t.hfestiva:t.hnormal;
-        const lbl=tr.tipo==='nocturna'?'h extras nocturnas':tr.tipo==='festiva'?'h extras festivas':tr.tipo==='normal_fest'?'h normales festivo':'h extras normales';
-        L.push(tr.horas+' '+lbl+' x '+fmt2(rate)+' EUR = '+fmt2(tr.horas*rate)+' EUR');
-      });
-    } else if(p.extras>0){
-      const lbl=p.tipo_extra==='nocturna'?'nocturnas':p.tipo_extra==='festiva'?'festivas':'normales';
-      const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
-      L.push(p.extras+'h extras '+lbl+' x '+fmt2(rate)+' EUR = '+fmt2(imp.he)+' EUR');
-    }
-    if(p.vcamion>0) L.push(p.vcamion+' viaje'+(p.vcamion>1?'s':'')+' camion x '+fmt2(t.vcamion)+' EUR = '+fmt2(imp.vc)+' EUR');
-    if(p.vcoche>0) L.push(p.vcoche+' viaje'+(p.vcoche>1?'s':'')+' coche x '+fmt2(t.vcoche)+' EUR = '+fmt2(imp.vco)+' EUR');
-    L.push(sep);
-    L.push('TOTAL DIA: '+fmt2(imp.total)+' EUR');
-  }
-  return L.join('\n');
-}
-
-function compartirDia(){
-  const p=buildParteObjFromForm();
-  if(!p.fecha){alert('Selecciona una fecha primero');return;}
-  const texto=buildTextoResumenDia(p);
-  const url='https://wa.me/?text='+encodeURIComponent(texto);
-  window.open(url,'_blank');
-}
-
-function compartirDiaEmail(){
-  const p=buildParteObjFromForm();
-  if(!p.fecha){alert('Selecciona una fecha primero');return;}
-  const texto=buildTextoResumenDia(p);
-  const asunto='Parte diario '+p.fecha.split('-').reverse().join('.')+' - '+p.nombre;
-  window.location.href=`mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(texto)}`;
-}
-
-function exportDiaPDF(){
-  const p=buildParteObjFromForm();
-  if(!p.fecha){alert('Selecciona una fecha primero');return;}
-  const imp=calcImporte(p);
-  const t=getT(p.fecha.slice(0,7));
-  const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  // Header
-  doc.setFillColor(24,95,165);doc.rect(0,0,210,28,'F');
-  doc.setTextColor(255);doc.setFontSize(16);
-  doc.text('PARTE DIARIO DE TRABAJO',14,12);
-  doc.setFontSize(10);
-  doc.text(p.fecha.split('-').reverse().join('.')+' - '+p.dia,14,20);
-  doc.text(`${p.nombre} · Talleres Montiel S.L.`,100,20);
-  // Info día
-  doc.setTextColor(40);doc.setFontSize(10);
-  let y=36;
-  doc.setFont(undefined,'bold');doc.text('Lugar de trabajo:',14,y);
-  doc.setFont(undefined,'normal');doc.text(p.lugar||'-',60,y);y+=7;
-  doc.setFont(undefined,'bold');doc.text('Horario:',14,y);
-  doc.setFont(undefined,'normal');doc.text(`${p.hinicio||''}${p.hfin?' - '+p.hfin:''} · ${p.horas} horas`,60,y);y+=7;
-  if(p.trabajo){
-    doc.setFont(undefined,'bold');doc.text('Trabajo realizado:',14,y);y+=6;
-    doc.setFont(undefined,'normal');doc.setFontSize(9);
-    const lines=doc.splitTextToSize(p.trabajo,182);
-    doc.text(lines,14,y);y+=lines.length*5+4;
-  }
-  // Tabla desglose
-  y+=4;doc.setDrawColor(200);doc.line(14,y,196,y);y+=6;
-  doc.setFontSize(11);doc.setFont(undefined,'bold');doc.setTextColor(24,95,165);
-  doc.text('LIQUIDACIÓN DEL DÍA',14,y);y+=8;
-  doc.setTextColor(40);doc.setFont(undefined,'normal');doc.setFontSize(10);
-  const items=[];
-  if(p.dieta>0) items.push([p.dieta+' dieta'+(p.dieta>1?'s':''),'x '+fmt2(t.dieta)+' EUR',fmt2(imp.td)+' EUR']);
-  if(p.extras>0){
-    const lbl=p.tipo_extra==='nocturna'?'nocturnas':p.tipo_extra==='festiva'?'festivas':'normales';
-    const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
-    items.push([p.extras+'h extras '+lbl,'x '+fmt2(rate)+' EUR',fmt2(imp.he)+' EUR']);
-  }
-  if(p.vcamion>0) items.push([p.vcamion+' viaje'+(p.vcamion>1?'s':'')+' camion','x '+fmt2(t.vcamion)+' EUR',fmt2(imp.vc)+' EUR']);
-  if(p.vcoche>0) items.push([p.vcoche+' viaje'+(p.vcoche>1?'s':'')+' coche','x '+fmt2(t.vcoche)+' EUR',fmt2(imp.vco)+' EUR']);
-  if(items.length===0) items.push(['Sin extras ni dietas','','0,00 €']);
-  items.forEach(row=>{
-    doc.text(row[0],14,y);doc.text(row[1],110,y,{align:'right'});
-    doc.setFont(undefined,'bold');doc.text(row[2],196,y,{align:'right'});doc.setFont(undefined,'normal');y+=7;
-  });
-  doc.setDrawColor(24,95,165);doc.line(14,y,196,y);y+=6;
-  doc.setFontSize(13);doc.setFont(undefined,'bold');doc.setTextColor(24,95,165);
-  doc.text(`TOTAL DÍA: ${fmt2(imp.total)} €`,196,y,{align:'right'});
-  doc.save(`Parte_${p.fecha}_${(p.nombre||'FRAN').split(' ')[0]}.pdf`);
-}
-
-// ═══════════════════════════════════════════════
-// COMPARTIR RESUMEN (WhatsApp / Email)
-// ═══════════════════════════════════════════════
-// Store last rendered resumen for sharing
-let _lastResumen = null;
-
-function compartirResumenWA(){
-  if(!_lastResumen){alert('Genera primero un resumen en la pestana Resumen.');return;}
-  const r=_lastResumen;
-  const sep='-------------------';
-  const L=[];
-  L.push('RESUMEN PARTES - '+r.titulo);
-  L.push('Trabajador: FRAN (CHOFER) - Talleres Montiel S.L.');
-  L.push('');L.push(sep);
-  if(r.totD>0) L.push(r.totD+' dieta'+(r.totD>1?'s':'')+' x '+fmt2(r.t0.dieta)+' EUR = '+fmt2(r.totD*r.t0.dieta)+' EUR');
-  if(r.totHN>0) L.push(r.totHN+'h extras normales x '+fmt2(r.t0.hnormal)+' EUR = '+fmt2(r.totHN*r.t0.hnormal)+' EUR');
-  if(r.totHNo>0) L.push(r.totHNo+'h extras nocturnas x '+fmt2(r.t0.hnocturna)+' EUR = '+fmt2(r.totHNo*r.t0.hnocturna)+' EUR');
-  if(r.totHF>0) L.push(r.totHF+'h extras festivas x '+fmt2(r.t0.hfestiva)+' EUR = '+fmt2(r.totHF*r.t0.hfestiva)+' EUR');
-  if((r.totHNF||0)>0) L.push(r.totHNF+'h normales en festivo x '+fmt2(r.t0.hfestiva)+' EUR = '+fmt2(r.totHNF*r.t0.hfestiva)+' EUR');
-  if(r.totVC>0) L.push(r.totVC+' viaje'+(r.totVC>1?'s':'')+' camion x '+fmt2(r.t0.vcamion)+' EUR = '+fmt2(r.totVC*r.t0.vcamion)+' EUR');
-  if(r.totVCo>0) L.push(r.totVCo+' viaje'+(r.totVCo>1?'s':'')+' coche x '+fmt2(r.t0.vcoche)+' EUR = '+fmt2(r.totVCo*r.t0.vcoche)+' EUR');
-  L.push(sep);
-  L.push('Subtotal extras y dietas: '+fmt2(r.totImpT)+' EUR');
-  if(!r.esRango){L.push('Guardia: '+fmt2(r.t0.guardia)+' EUR');L.push('Sueldo base: '+fmt2(r.t0.sueldo)+' EUR');}
-  L.push(sep);
-  L.push('TOTAL: '+fmt2(r.esRango?r.totImpT:r.totImpT+r.t0.sueldo+r.t0.guardia)+' EUR');
-  window.open('https://wa.me/?text='+encodeURIComponent(L.join('\n')),'_blank');
-}
-
-function compartirResumenEmail(){
-  if(!_lastResumen){alert('Genera primero un resumen en la pestana Resumen.');return;}
-  const r=_lastResumen;
-  const asunto='Resumen partes - '+r.titulo;
-  const L=[];
-  L.push('RESUMEN DE PARTES - '+r.titulo);
-  L.push('Trabajador: FRAN (CHOFER) - Talleres Montiel S.L.');
-  L.push('');
-  if(r.totD>0) L.push(r.totD+' dieta'+(r.totD>1?'s':'')+' x '+fmt2(r.t0.dieta)+' EUR = '+fmt2(r.totD*r.t0.dieta)+' EUR');
-  if(r.totHN>0) L.push(r.totHN+'h extras normales x '+fmt2(r.t0.hnormal)+' EUR = '+fmt2(r.totHN*r.t0.hnormal)+' EUR');
-  if(r.totHNo>0) L.push(r.totHNo+'h extras nocturnas x '+fmt2(r.t0.hnocturna)+' EUR = '+fmt2(r.totHNo*r.t0.hnocturna)+' EUR');
-  if(r.totHF>0) L.push(r.totHF+'h extras festivas x '+fmt2(r.t0.hfestiva)+' EUR = '+fmt2(r.totHF*r.t0.hfestiva)+' EUR');
-  if(r.totVC>0) L.push(r.totVC+' viaje'+(r.totVC>1?'s':'')+' camion x '+fmt2(r.t0.vcamion)+' EUR = '+fmt2(r.totVC*r.t0.vcamion)+' EUR');
-  if(r.totVCo>0) L.push(r.totVCo+' viaje'+(r.totVCo>1?'s':'')+' coche x '+fmt2(r.t0.vcoche)+' EUR = '+fmt2(r.totVCo*r.t0.vcoche)+' EUR');
-  L.push('');
-  L.push('Subtotal extras y dietas: '+fmt2(r.totImpT)+' EUR');
-  if(!r.esRango){L.push('Guardia: '+fmt2(r.t0.guardia)+' EUR');L.push('Sueldo base: '+fmt2(r.t0.sueldo)+' EUR');}
-  L.push('TOTAL: '+fmt2(r.esRango?r.totImpT:r.totImpT+r.t0.sueldo+r.t0.guardia)+' EUR');
-  window.location.href='mailto:?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(L.join('\n'));
-}
-
-function mostrarAyudaSync(){
-  const div=document.getElementById('sync-panel');
-  div.style.display=div.style.display==='none'?'':'none';
-}
-</script>
-</body>
-</html>
+>
