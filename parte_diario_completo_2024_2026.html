@@ -169,6 +169,10 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
     <input type="text" id="busq-partes" placeholder="Buscar en partes..." style="flex:1;min-width:140px" oninput="renderPartes()">
     <select id="filtro-mes" onchange="renderPartes()" style="width:auto"><option value="">Todos los meses</option></select>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="chk-importes-lista" checked onchange="renderPartes()" style="width:auto">
+      Con importes
+    </label>
   </div>
   <div id="lista-partes"></div>
 </div>
@@ -193,8 +197,13 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
         <label style="font-size:12px;color:#5f5e5a">Hasta</label>
         <input type="date" id="rango-hasta" style="width:auto" onchange="renderMensual()">
       </div>
-      <div style="margin-left:auto">
-        <button class="btn btn-ghost" onclick="exportMensualPDF()">&#x1F4C4; Exportar PDF</button>
+      <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;cursor:pointer">
+          <input type="checkbox" id="chk-importes" checked onchange="renderMensual()" style="width:auto">
+          Mostrar importes
+        </label>
+        <button class="btn btn-ghost" onclick="exportMensualPDF()" style="font-size:12px">&#x1F4C4; PDF</button>
+        <button class="btn btn-ghost" onclick="exportMensualImagen()" style="font-size:12px">&#x1F4F7; Imagen</button>
       </div>
     </div>
   </div>
@@ -450,6 +459,7 @@ function buildFiltroMes(){
 }
 function renderPartes(){
   const q=gs('busq-partes').toLowerCase(),mes=gs('filtro-mes');
+  const mostrarImpLista=document.getElementById('chk-importes-lista')?.checked!==false;
   const c=document.getElementById('lista-partes');
   let lista=partes.filter(p=>{
     const okM=!mes||p.fecha.startsWith(mes);
@@ -476,7 +486,13 @@ function renderPartes(){
         </div>
       </div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-        ${imp.total>0?`<div style="font-size:13px;font-weight:600;color:#185FA5">${fmt2(imp.total)} &euro;</div>`:''}
+        ${mostrarImpLista&&imp.total>0?`<div style="font-size:13px;font-weight:600;color:#185FA5">${fmt2(imp.total)} &euro;</div>`:''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;margin-top:2px">
+          <button onclick="compartirDiaPorId(${p.id},'wa')" style="background:#25D366;color:#fff;border:none;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer" title="WhatsApp">&#x1F4F1;</button>
+          <button onclick="compartirDiaPorId(${p.id},'email')" style="background:none;border:1px solid #888;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer" title="Email">&#x2709;</button>
+          <button onclick="compartirDiaPorId(${p.id},'pdf')" style="background:none;border:1px solid #888;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer" title="PDF">&#x1F4C4;</button>
+          <button onclick="compartirDiaPorId(${p.id},'img')" style="background:none;border:1px solid #888;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer" title="Imagen">&#x1F4F7;</button>
+        </div>
         <button class="btn btn-ghost" onclick="editarParte(${p.id})" style="font-size:11px;padding:3px 8px">&#x270F; Editar</button>
         <button class="btn-danger" onclick="deleteParte(${p.id})">&#x2715;</button>
       </div>
@@ -553,7 +569,7 @@ function renderMensual(){
     dias=getDiasDelMes(mes);pdm=partes.filter(p=>p.fecha.startsWith(mes));
     const[y,m]=mes.split('-').map(Number);titulo=`${MESES_N[m-1]} ${y}`;t0=getT(mes);
   }
-  const{rows,totD,totHN,totHNo,totHF,totVC,totVCo,totImpH,totImpD,totImpT}=calcRango(dias,pdm);
+  const{rows,totD,totHN,totHNo,totHF,totHNF,totVC,totVCo,totImpH,totImpD,totImpT}=calcRango(dias,pdm);
   const esRango=modo==='rango';
   const dev=totImpT+t0.sueldo+t0.guardia;
   _lastResumen={titulo,totD,totHN,totHNo,totHF,totHNF,totVC,totVCo,totImpH,totImpT,t0,esRango,dev};
@@ -564,7 +580,9 @@ function renderMensual(){
     <div class="stat"><div class="stat-n">${totVC}</div><div class="stat-l">V. cami&oacute;n</div></div>
     <div class="stat"><div class="stat-n">${totVCo}</div><div class="stat-l">V. coche</div></div>
     <div class="stat"><div class="stat-n" style="color:#185FA5">${fmt2(totImpT)} &euro;</div><div class="stat-l">Total extras</div></div>`;
-  document.getElementById('tabla-mensual').innerHTML=`<thead><tr><th>Fecha</th><th>Dieta</th><th>H.norm</th><th>H.noct</th><th>H.fest</th><th>H.n.fest</th><th>V.cam</th><th>V.coch</th><th>Im.horas</th><th>Im.total</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.ds.split('-').reverse().join('.')} <span style="font-size:10px;color:#888780">${r.dia.slice(0,3)}</span></td><td>${r.dieta||''}</td><td>${r.hn||''}</td><td>${r.hno||''}</td><td>${r.hf||''}</td><td>${r.hnf||''}</td><td>${r.vc||''}</td><td>${r.vco||''}</td><td>${r.impH>0?fmt2(r.impH)+'&euro;':''}</td><td style="font-weight:${r.impT>0?500:400}">${r.impT>0?fmt2(r.impT)+'&euro;':''}</td></tr>`).join('')}<tr class="total-row"><td>TOTAL ${titulo}</td><td>${totD||''}</td><td>${totHN>0?String(totHN).replace('.',','):''}</td><td>${totHNo>0?String(totHNo).replace('.',','):''}</td><td>${totHF>0?String(totHF).replace('.',','):''}</td><td>${totHNF>0?String(totHNF).replace('.',','):''}</td><td>${totVC||''}</td><td>${totVCo||''}</td><td>${fmt2(totImpH)}&euro;</td><td>${fmt2(totImpT)}&euro;</td></tr></tbody>`;
+  const mostrarImp=document.getElementById('chk-importes')?.checked!==false;
+  document.getElementById('tabla-mensual').innerHTML=`<thead><tr><th>Fecha</th><th>Dieta</th><th>H.norm</th><th>H.noct</th><th>H.fest</th><th>H.n.fest</th><th>V.cam</th><th>V.coch</th>${mostrarImp?'<th>Im.horas</th><th>Im.total</th>':''}</tr></thead><tbody>${rows.map(r=>`<tr><td>${r.ds.split('-').reverse().join('.')} <span style="font-size:10px;color:#888780">${r.dia.slice(0,3)}</span></td><td>${r.dieta||''}</td><td>${r.hn||''}</td><td>${r.hno||''}</td><td>${r.hf||''}</td><td>${r.hnf||''}</td><td>${r.vc||''}</td><td>${r.vco||''}</td>${mostrarImp?`<td>${r.impH>0?fmt2(r.impH)+'&euro;':''}</td><td style="font-weight:${r.impT>0?500:400}">${r.impT>0?fmt2(r.impT)+'&euro;':''}</td>`:''}</tr>`).join('')}<tr class="total-row"><td>TOTAL ${titulo}</td><td>${totD||''}</td><td>${totHN>0?String(totHN).replace('.',','):''}</td><td>${totHNo>0?String(totHNo).replace('.',','):''}</td><td>${totHF>0?String(totHF).replace('.',','):''}</td><td>${(totHNF||0)>0?String(totHNF).replace('.',','):''}</td><td>${totVC||''}</td><td>${totVCo||''}</td>${mostrarImp?`<td>${fmt2(totImpH)}&euro;</td><td>${fmt2(totImpT)}&euro;</td>`:''}</tr></tbody>`;
+  document.getElementById('box-importe').style.display=mostrarImp?'':'none';
   document.getElementById('box-importe').innerHTML=`
     <div style="font-size:11px;font-weight:600;color:#185FA5;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem">Liquidaci&oacute;n &mdash; ${titulo}</div>
     ${esRango?'<div style="font-size:11px;color:#888780;margin-bottom:.5rem">&#x26A0; En rango: las tarifas aplicadas son las del primer mes del per&iacute;odo.</div>':''}
@@ -597,7 +615,7 @@ function exportMensualPDF(){
     dias=getDiasDelMes(mes);pdm=partes.filter(p=>p.fecha.startsWith(mes));
     const[y,m]=mes.split('-').map(Number);titulo=`${MESES_N[m-1]} ${y}`;t0=getT(mes);
   }
-  const{rows,totD,totHN,totHNo,totHF,totVC,totVCo,totImpH,totImpT}=calcRango(dias,pdm);
+  const{rows,totD,totHN,totHNo,totHF,totHNF,totVC,totVCo,totImpH,totImpT}=calcRango(dias,pdm);
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   doc.setFontSize(14);doc.setTextColor(24,95,165);doc.text(`PARTE - ${titulo}`,14,14);
@@ -659,6 +677,177 @@ function importBackup(e){
   };
   r.readAsText(file);e.target.value='';
 }
+function exportMensualImagen(){
+  const el=document.getElementById('tab-mensual');
+  if(!el){alert('Abre el Resumen primero');return;}
+  // Use html2canvas via CDN loaded on demand
+  if(window.html2canvas){capturarImagen(el);return;}
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.onload=()=>capturarImagen(el);
+  s.onerror=()=>alert('No se pudo cargar la libreria de imagen. Comprueba tu conexion a internet.');
+  document.head.appendChild(s);
+}
+function capturarImagen(el){
+  // Hide buttons temporarily
+  const btns=el.querySelectorAll('button,input[type=checkbox]');
+  const prevDisplay=[];
+  btns.forEach((b,i)=>{prevDisplay[i]=b.style.visibility;b.style.visibility='hidden';});
+  html2canvas(el,{backgroundColor:'#f5f5f3',scale:2,useCORS:true,logging:false}).then(canvas=>{
+    btns.forEach((b,i)=>b.style.visibility=prevDisplay[i]);
+    const link=document.createElement('a');
+    const mes=document.getElementById('sel-mes')?.value||new Date().toISOString().slice(0,7);
+    link.download='Resumen_'+mes+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+  }).catch(()=>{
+    btns.forEach((b,i)=>b.style.visibility=prevDisplay[i]);
+    alert('Error al generar la imagen.');
+  });
+}
+
+// ═══════════════════════════════════════
+// COMPARTIR DIA DESDE LISTA DE PARTES
+// ═══════════════════════════════════════
+function compartirDiaPorId(id, tipo){
+  const p = partes.find(x=>x.id===id);
+  if(!p){alert('Parte no encontrado');return;}
+  const conImp=document.getElementById('chk-importes-lista')?.checked!==false;
+  if(tipo==='wa'){
+    const texto=buildTextoResumenDia(p,conImp);
+    window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+  } else if(tipo==='email'){
+    const texto=buildTextoResumenDia(p,conImp);
+    const asunto='Parte diario '+p.fecha.split('-').reverse().join('.')+' - '+p.nombre;
+    window.location.href='mailto:?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(texto);
+  } else if(tipo==='pdf'){
+    exportDiaPDFPorParte(p,conImp);
+  } else if(tipo==='img'){
+    exportDiaImagenPorId(id,conImp);
+  }
+}
+
+function exportDiaPDFPorParte(p, conImp=true){
+  const imp=calcImporte(p);
+  const t=imp.t||getT(p.fecha.slice(0,7));
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  doc.setFillColor(24,95,165);doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255);doc.setFontSize(16);
+  doc.text('PARTE DIARIO DE TRABAJO',14,12);
+  doc.setFontSize(10);
+  doc.text(p.fecha.split('-').reverse().join('.')+' - '+p.dia,14,20);
+  doc.text(p.nombre+' - Talleres Montiel S.L.',100,20);
+  doc.setTextColor(40);doc.setFontSize(10);
+  let y=36;
+  doc.setFont(undefined,'bold');doc.text('Lugar:',14,y);
+  doc.setFont(undefined,'normal');doc.text(p.lugar||'-',45,y);y+=7;
+  doc.setFont(undefined,'bold');doc.text('Horario:',14,y);
+  doc.setFont(undefined,'normal');doc.text((p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' ('+p.horas+'h)',45,y);y+=7;
+  if(p.trabajo){
+    doc.setFont(undefined,'bold');doc.text('Trabajo:',14,y);y+=5;
+    doc.setFont(undefined,'normal');doc.setFontSize(9);
+    const lines=doc.splitTextToSize(p.trabajo,182);
+    doc.text(lines,14,y);y+=lines.length*5+4;
+  }
+  if(conImp){
+  y+=4;doc.setDrawColor(200);doc.line(14,y,196,y);y+=6;
+  doc.setFontSize(11);doc.setFont(undefined,'bold');doc.setTextColor(24,95,165);
+  doc.text('LIQUIDACION DEL DIA',14,y);y+=8;
+  doc.setTextColor(40);doc.setFont(undefined,'normal');doc.setFontSize(10);
+  const items=[];
+  if(p.dieta>0) items.push([p.dieta+' dieta'+(p.dieta>1?'s':''),'x '+fmt2(t.dieta)+' EUR',fmt2(imp.td)+' EUR']);
+  if(p.tramos&&p.tramos.length>0){
+    p.tramos.forEach(tr=>{
+      if(tr.horas<=0) return;
+      const rate=tr.tipo==='nocturna'?t.hnocturna:tr.tipo==='festiva'||tr.tipo==='normal_fest'?t.hfestiva:t.hnormal;
+      const lbl=tr.tipo==='nocturna'?'h extras nocturnas':tr.tipo==='festiva'?'h extras festivas':tr.tipo==='normal_fest'?'h normales festivo':'h extras normales';
+      items.push([tr.horas+' '+lbl,'x '+fmt2(rate)+' EUR',fmt2(tr.horas*rate)+' EUR']);
+    });
+  } else if(p.extras>0){
+    const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
+    const lbl=p.tipo_extra==='nocturna'?'h extras nocturnas':p.tipo_extra==='festiva'?'h extras festivas':'h extras normales';
+    items.push([p.extras+' '+lbl,'x '+fmt2(rate)+' EUR',fmt2(imp.he)+' EUR']);
+  }
+  if(p.vcamion>0) items.push([p.vcamion+' viaje'+(p.vcamion>1?'s':'')+' camion','x '+fmt2(t.vcamion)+' EUR',fmt2(imp.vc)+' EUR']);
+  if(p.vcoche>0) items.push([p.vcoche+' viaje'+(p.vcoche>1?'s':'')+' coche','x '+fmt2(t.vcoche)+' EUR',fmt2(imp.vco)+' EUR']);
+  if(items.length===0) items.push(['Sin extras ni dietas','','0,00 EUR']);
+  items.forEach(row=>{
+    doc.text(row[0],14,y);doc.text(row[1],120,y,{align:'right'});
+    doc.setFont(undefined,'bold');doc.text(row[2],196,y,{align:'right'});doc.setFont(undefined,'normal');y+=7;
+  });
+  doc.setDrawColor(24,95,165);doc.line(14,y,196,y);y+=6;
+  doc.setFontSize(13);doc.setFont(undefined,'bold');doc.setTextColor(24,95,165);
+  doc.text('TOTAL DIA: '+fmt2(imp.total)+' EUR',196,y,{align:'right'});
+  } // end conImp
+  doc.save('Parte_'+p.fecha+'_FRAN.pdf');
+}
+
+function exportDiaImagenPorId(id, conImp=true){
+  // Find the card element and capture it
+  const cards=document.querySelectorAll('.parte-card');
+  let targetCard=null;
+  // We need to build a temp div with the parte info
+  const p=partes.find(x=>x.id===id);
+  if(!p){alert('Parte no encontrado');return;}
+  const imp=calcImporte(p);
+  const t=imp.t||getT(p.fecha.slice(0,7));
+  // Build a printable div
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;top:-9999px;left:-9999px;background:#fff;padding:20px;width:600px;font-family:system-ui,sans-serif;color:#1a1a18;border-radius:12px';
+  div.innerHTML=`
+    <div style="background:#185FA5;color:#fff;padding:12px 16px;border-radius:8px 8px 0 0;margin:-20px -20px 16px">
+      <div style="font-size:16px;font-weight:600">PARTE DIARIO DE TRABAJO</div>
+      <div style="font-size:12px;margin-top:3px">${p.fecha.split('-').reverse().join('.')} - ${p.dia} | ${p.nombre} | Talleres Montiel S.L.</div>
+    </div>
+    <div style="margin-bottom:8px"><strong>Lugar:</strong> ${p.lugar||'-'}</div>
+    <div style="margin-bottom:8px"><strong>Horario:</strong> ${p.hinicio||''}${p.hfin?' - '+p.hfin:''} (${p.horas}h)</div>
+    ${p.trabajo?`<div style="margin-bottom:12px;padding:8px;background:#f5f5f3;border-radius:6px;font-size:13px;white-space:pre-wrap">${p.trabajo}</div>`:''}
+    `+(conImp?`    <div style="border-top:2px solid #185FA5;padding-top:12px;margin-top:4px">
+      <div style="font-weight:600;color:#185FA5;margin-bottom:8px">LIQUIDACION DEL DIA</div>
+      ${p.dieta>0?`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.dieta} dieta${p.dieta>1?'s':''} x ${fmt2(t.dieta)} EUR = <strong>${fmt2(imp.td)} EUR</strong></div>`:''}
+      ${(()=>{
+        let r='';
+        if(p.tramos&&p.tramos.length>0){
+          p.tramos.forEach(tr=>{
+            if(tr.horas<=0) return;
+            const rate=tr.tipo==='nocturna'?t.hnocturna:tr.tipo==='festiva'||tr.tipo==='normal_fest'?t.hfestiva:t.hnormal;
+            const lbl=tr.tipo==='nocturna'?'h extras nocturnas':tr.tipo==='festiva'?'h extras festivas':tr.tipo==='normal_fest'?'h normales festivo':'h extras normales';
+            r+=`<div style="display:flex;justify-content:space-between;padding:3px 0">${tr.horas} ${lbl} x ${fmt2(rate)} EUR = <strong>${fmt2(tr.horas*rate)} EUR</strong></div>`;
+          });
+        } else if(p.extras>0){
+          const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
+          const lbl=p.tipo_extra==='nocturna'?'h extras nocturnas':p.tipo_extra==='festiva'?'h extras festivas':'h extras normales';
+          r+=`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.extras} ${lbl} x ${fmt2(rate)} EUR = <strong>${fmt2(imp.he)} EUR</strong></div>`;
+        }
+        return r;
+      })()}
+      ${p.vcamion>0?`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.vcamion} viaje${p.vcamion>1?'s':''} camion x ${fmt2(t.vcamion)} EUR = <strong>${fmt2(imp.vc)} EUR</strong></div>`:''}
+      ${p.vcoche>0?`<div style="display:flex;justify-content:space-between;padding:3px 0">${p.vcoche} viaje${p.vcoche>1?'s':''} coche x ${fmt2(t.vcoche)} EUR = <strong>${fmt2(imp.vco)} EUR</strong></div>`:''}
+      <div style="border-top:1px solid #185FA5;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#185FA5">
+        <span>TOTAL DIA</span><span>${fmt2(imp.total)} EUR</span>
+      </div>
+    </div>`;`:'')+`
+    document.body.appendChild(div);
+  const loadImg=()=>{
+    html2canvas(div,{backgroundColor:'#fff',scale:2,useCORS:true,logging:false}).then(canvas=>{
+      document.body.removeChild(div);
+      const link=document.createElement('a');
+      link.download='Parte_'+p.fecha+'_FRAN.png';
+      link.href=canvas.toDataURL('image/png');
+      link.click();
+    }).catch(()=>{document.body.removeChild(div);alert('Error al generar la imagen.');});
+  };
+  if(window.html2canvas){loadImg();}
+  else{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload=loadImg;
+    s.onerror=()=>{document.body.removeChild(div);alert('No se pudo cargar la libreria. Comprueba tu conexion.');};
+    document.head.appendChild(s);
+  }
+}
+
 document.getElementById('p-fecha').value=new Date().toISOString().slice(0,10);
 document.getElementById('total-count').textContent=partes.length;
 addTramo(); // Start with one empty tramo row
@@ -675,7 +864,7 @@ function buildParteObjFromForm(){
     dieta:parseInt(gs('p-dieta')),tipo_extra:gs('p-tipo-extra')};
 }
 
-function buildTextoResumenDia(p){
+function buildTextoResumenDia(p, conImp=true){
   const imp=calcImporte(p);
   const t=getT(p.fecha.slice(0,7));
   const sep='-------------------';
@@ -685,17 +874,26 @@ function buildTextoResumenDia(p){
   L.push('Lugar: '+(p.lugar||'-'));
   L.push('Horario: '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' | '+p.horas+'h');
   if(p.trabajo){L.push('');L.push('Trabajo realizado:');L.push(p.trabajo);}
-  L.push('');L.push(sep);
-  if(p.dieta>0) L.push(p.dieta+' dieta'+(p.dieta>1?'s':'')+' x '+fmt2(t.dieta)+' EUR = '+fmt2(imp.td)+' EUR');
-  if(p.extras>0){
-    const lbl=p.tipo_extra==='nocturna'?'nocturnas':p.tipo_extra==='festiva'?'festivas':'normales';
-    const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
-    L.push(p.extras+'h extras '+lbl+' x '+fmt2(rate)+' EUR = '+fmt2(imp.he)+' EUR');
+  if(conImp){
+    L.push('');L.push(sep);
+    if(p.dieta>0) L.push(p.dieta+' dieta'+(p.dieta>1?'s':'')+' x '+fmt2(t.dieta)+' EUR = '+fmt2(imp.td)+' EUR');
+    if(p.tramos&&p.tramos.length>0){
+      p.tramos.forEach(tr=>{
+        if(tr.horas<=0) return;
+        const rate=tr.tipo==='nocturna'?t.hnocturna:tr.tipo==='festiva'||tr.tipo==='normal_fest'?t.hfestiva:t.hnormal;
+        const lbl=tr.tipo==='nocturna'?'h extras nocturnas':tr.tipo==='festiva'?'h extras festivas':tr.tipo==='normal_fest'?'h normales festivo':'h extras normales';
+        L.push(tr.horas+' '+lbl+' x '+fmt2(rate)+' EUR = '+fmt2(tr.horas*rate)+' EUR');
+      });
+    } else if(p.extras>0){
+      const lbl=p.tipo_extra==='nocturna'?'nocturnas':p.tipo_extra==='festiva'?'festivas':'normales';
+      const rate=p.tipo_extra==='nocturna'?t.hnocturna:p.tipo_extra==='festiva'?t.hfestiva:t.hnormal;
+      L.push(p.extras+'h extras '+lbl+' x '+fmt2(rate)+' EUR = '+fmt2(imp.he)+' EUR');
+    }
+    if(p.vcamion>0) L.push(p.vcamion+' viaje'+(p.vcamion>1?'s':'')+' camion x '+fmt2(t.vcamion)+' EUR = '+fmt2(imp.vc)+' EUR');
+    if(p.vcoche>0) L.push(p.vcoche+' viaje'+(p.vcoche>1?'s':'')+' coche x '+fmt2(t.vcoche)+' EUR = '+fmt2(imp.vco)+' EUR');
+    L.push(sep);
+    L.push('TOTAL DIA: '+fmt2(imp.total)+' EUR');
   }
-  if(p.vcamion>0) L.push(p.vcamion+' viaje'+(p.vcamion>1?'s':'')+' camion x '+fmt2(t.vcamion)+' EUR = '+fmt2(imp.vc)+' EUR');
-  if(p.vcoche>0) L.push(p.vcoche+' viaje'+(p.vcoche>1?'s':'')+' coche x '+fmt2(t.vcoche)+' EUR = '+fmt2(imp.vco)+' EUR');
-  L.push(sep);
-  L.push('TOTAL DIA: '+fmt2(imp.total)+' EUR');
   return L.join('\n');
 }
 
