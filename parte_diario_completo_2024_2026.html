@@ -102,8 +102,20 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
       <div class="field"><span class="lbl">Lugar de trabajo</span><input type="text" id="p-lugar" placeholder="EN TALLER, EN TRADEMA..."></div>
     </div>
     <div class="grid2" style="margin-bottom:10px">
-      <div class="field"><span class="lbl">Hora comienzo</span><input type="time" id="p-hinicio" value="08:00"></div>
-      <div class="field"><span class="lbl">Hora final</span><input type="time" id="p-hfin" value="17:00"></div>
+      <div class="field">
+        <span class="lbl">Hora comienzo</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="time" id="p-hinicio" value="08:00" style="flex:1">
+          <button type="button" onclick="abrirReloj('p-hinicio','Hora comienzo')" style="background:#185FA5;color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:16px" title="Seleccionar con reloj">&#x1F551;</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Hora final</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="time" id="p-hfin" value="17:00" style="flex:1">
+          <button type="button" onclick="abrirReloj('p-hfin','Hora final')" style="background:#185FA5;color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:16px" title="Seleccionar con reloj">&#x1F551;</button>
+        </div>
+      </div>
     </div>
     <div class="field" style="margin-bottom:10px">
       <span class="lbl">Trabajo realizado</span>
@@ -212,6 +224,25 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
     </div>
   </div>
 </div>
+</div>
+
+<!-- MODAL RELOJ -->
+<div id="modal-reloj" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;align-items:center;justify-content:center">
+  <div style="background:#1a1a2e;border-radius:20px;padding:1.5rem;max-width:320px;width:92%;margin:auto;position:relative;top:50%;transform:translateY(-50%)">
+    <div id="reloj-titulo" style="color:#fff;font-size:14px;font-weight:500;text-align:center;margin-bottom:.75rem;opacity:.7"></div>
+    <div style="display:flex;justify-content:center;gap:8px;margin-bottom:1rem">
+      <div id="reloj-display-h" onclick="relojSetModo('h')" style="font-size:48px;font-weight:300;color:#fff;cursor:pointer;padding:4px 12px;border-radius:8px;transition:.15s"></div>
+      <div style="font-size:48px;font-weight:300;color:#fff;line-height:1.1">:</div>
+      <div id="reloj-display-m" onclick="relojSetModo('m')" style="font-size:48px;font-weight:300;color:#fff;cursor:pointer;padding:4px 12px;border-radius:8px;transition:.15s"></div>
+    </div>
+    <div style="position:relative;width:240px;height:240px;margin:0 auto 1.25rem">
+      <canvas id="reloj-canvas" width="240" height="240" style="cursor:pointer;touch-action:none"></canvas>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button onclick="cerrarReloj()" style="background:none;border:none;color:#aaa;font-size:14px;cursor:pointer;padding:8px 16px">Cancelar</button>
+      <button onclick="confirmarReloj()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:500">OK</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL COMPARTIR IMAGEN -->
@@ -913,6 +944,188 @@ function mostrarAyudaSync(){
 document.getElementById('p-fecha').value=new Date().toISOString().slice(0,10);
 document.getElementById('total-count').textContent=partes.length;
 addTramo();
+
+// ===== RELOJ SELECTOR =====
+var _relojInputId = '';
+var _relojModo = 'h'; // 'h' o 'm'
+var _relojH = 8;
+var _relojM = 0;
+var _relojAccent = '#185FA5';
+var _relojDark = '#1a1a2e';
+var _relojFace = '#16213e';
+
+function abrirReloj(inputId, titulo){
+  _relojInputId = inputId;
+  var val = document.getElementById(inputId).value || '08:00';
+  var parts = val.split(':');
+  _relojH = parseInt(parts[0]) || 8;
+  _relojM = parseInt(parts[1]) || 0;
+  _relojModo = 'h';
+  document.getElementById('reloj-titulo').textContent = titulo || 'Seleccionar hora';
+  var modal = document.getElementById('modal-reloj');
+  modal.style.display = 'flex';
+  relojActualizarDisplay();
+  relojDibujar();
+  // Events
+  var canvas = document.getElementById('reloj-canvas');
+  canvas.onmousedown = relojClick;
+  canvas.ontouchstart = function(e){e.preventDefault();relojClickTouch(e);};
+  canvas.ontouchmove = function(e){e.preventDefault();relojClickTouch(e);};
+}
+
+function cerrarReloj(){
+  document.getElementById('modal-reloj').style.display = 'none';
+}
+
+function confirmarReloj(){
+  var hStr = String(_relojH).padStart(2,'0');
+  var mStr = String(_relojM).padStart(2,'0');
+  document.getElementById(_relojInputId).value = hStr + ':' + mStr;
+  cerrarReloj();
+}
+
+function relojSetModo(modo){
+  _relojModo = modo;
+  relojActualizarDisplay();
+  relojDibujar();
+}
+
+function relojActualizarDisplay(){
+  var hEl = document.getElementById('reloj-display-h');
+  var mEl = document.getElementById('reloj-display-m');
+  hEl.textContent = String(_relojH).padStart(2,'0');
+  mEl.textContent = String(_relojM).padStart(2,'0');
+  hEl.style.background = _relojModo==='h' ? _relojAccent : 'rgba(255,255,255,.1)';
+  mEl.style.background = _relojModo==='m' ? _relojAccent : 'rgba(255,255,255,.1)';
+}
+
+function relojDibujar(){
+  var canvas = document.getElementById('reloj-canvas');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var cx = 120, cy = 120, r = 110;
+  ctx.clearRect(0,0,240,240);
+
+  // Fondo esfera
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fillStyle = _relojFace;ctx.fill();
+
+  var count = _relojModo==='h' ? 24 : 60;
+  var current = _relojModo==='h' ? _relojH : _relojM;
+  var step = _relojModo==='h' ? 1 : 5;
+  var showCount = _relojModo==='h' ? 24 : 12;
+
+  // Línea al número seleccionado
+  var selAngle = (current / count) * Math.PI * 2 - Math.PI/2;
+  var lineR = _relojModo==='h' && current>=12 ? r*0.55 : r*0.78;
+  ctx.beginPath();
+  ctx.moveTo(cx,cy);
+  ctx.lineTo(cx + Math.cos(selAngle)*lineR, cy + Math.sin(selAngle)*lineR);
+  ctx.strokeStyle = _relojAccent;ctx.lineWidth = 2;ctx.stroke();
+
+  // Punto central
+  ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);
+  ctx.fillStyle = _relojAccent;ctx.fill();
+
+  // Números
+  if(_relojModo==='h'){
+    // 24h: outer ring 0-11, inner ring 12-23
+    for(var h=0;h<24;h++){
+      var isInner = h>=12;
+      var displayH = h;
+      var angle = (h/24)*Math.PI*2 - Math.PI/2;
+      var nr = isInner ? r*0.55 : r*0.78;
+      var nx = cx + Math.cos(angle)*nr;
+      var ny = cy + Math.sin(angle)*nr;
+      var isSelected = h===current;
+      // Dot for selected
+      ctx.beginPath();ctx.arc(nx,ny,isSelected?16:12,0,Math.PI*2);
+      ctx.fillStyle = isSelected ? _relojAccent : 'transparent';ctx.fill();
+      ctx.font = (isSelected?'bold ':'')+(isInner?'11':'13')+'px system-ui';
+      ctx.fillStyle = isSelected ? '#fff' : (isInner?'rgba(255,255,255,.55)':'rgba(255,255,255,.9)');
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(String(displayH).padStart(2,'0'),nx,ny);
+    }
+  } else {
+    // Minutes: show 00,05,10...55
+    for(var i=0;i<12;i++){
+      var minVal = i*5;
+      var angle = (i/12)*Math.PI*2 - Math.PI/2;
+      var nr = r*0.78;
+      var nx = cx + Math.cos(angle)*nr;
+      var ny = cy + Math.sin(angle)*nr;
+      var isSelected = Math.abs(_relojM - minVal) < 3 || (_relojM===0&&minVal===0);
+      isSelected = _relojM === minVal;
+      ctx.beginPath();ctx.arc(nx,ny,isSelected?16:12,0,Math.PI*2);
+      ctx.fillStyle = isSelected ? _relojAccent : 'transparent';ctx.fill();
+      ctx.font = (isSelected?'bold ':'')+'13px system-ui';
+      ctx.fillStyle = isSelected ? '#fff' : 'rgba(255,255,255,.9)';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(String(minVal).padStart(2,'0'),nx,ny);
+    }
+    // Show current minute dot if not on a 5-min mark
+    if(_relojM % 5 !== 0){
+      var angle = (_relojM/60)*Math.PI*2 - Math.PI/2;
+      var nx = cx + Math.cos(angle)*r*0.78;
+      var ny = cy + Math.sin(angle)*r*0.78;
+      ctx.beginPath();ctx.arc(nx,ny,4,0,Math.PI*2);
+      ctx.fillStyle = _relojAccent;ctx.fill();
+    }
+  }
+}
+
+function relojGetAngle(canvas, clientX, clientY){
+  var rect = canvas.getBoundingClientRect();
+  var x = clientX - rect.left - 120;
+  var y = clientY - rect.top - 120;
+  return Math.atan2(y,x);
+}
+
+function relojAngleToValue(angle){
+  // angle from center: convert to 0-1 fraction
+  var frac = (angle + Math.PI/2) / (Math.PI*2);
+  if(frac<0) frac+=1;
+  if(_relojModo==='h'){
+    // Determine inner/outer by distance from center
+    return Math.round(frac*24) % 24;
+  } else {
+    return Math.round(frac*60) % 60;
+  }
+}
+
+function relojClickWithXY(canvas, clientX, clientY){
+  var rect = canvas.getBoundingClientRect();
+  var x = clientX - rect.left - 120;
+  var y = clientY - rect.top - 120;
+  var dist = Math.sqrt(x*x+y*y);
+  if(dist < 10) return; // too close to center
+  var angle = Math.atan2(y,x);
+  var frac = (angle + Math.PI/2)/(Math.PI*2);
+  if(frac<0) frac+=1;
+  if(_relojModo==='h'){
+    // inner ring (12-23) if dist < 70, outer ring (0-11) if dist >= 70
+    var isInner = dist < 70;
+    var rawH = Math.round(frac*12) % 12;
+    _relojH = isInner ? rawH+12 : rawH;
+    if(_relojH===24) _relojH=0;
+  } else {
+    _relojM = Math.round(frac*60) % 60;
+  }
+  relojActualizarDisplay();
+  relojDibujar();
+  // Auto-switch to minutes after selecting hour
+  if(_relojModo==='h'){
+    setTimeout(function(){_relojModo='m';relojActualizarDisplay();relojDibujar();},300);
+  }
+}
+
+function relojClick(e){
+  relojClickWithXY(e.target, e.clientX, e.clientY);
+}
+function relojClickTouch(e){
+  var t = e.touches[0];
+  relojClickWithXY(e.target, t.clientX, t.clientY);
+}
 
 // ===== MODAL COMPARTIR IMAGEN =====
 var _imagenCanvas = null;   // canvas generado
