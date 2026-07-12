@@ -701,50 +701,71 @@ function abrirModalEscandallo(id){
       return '<div class="ing-row">'+
         '<input value="'+ing.nombre+'" placeholder="Ingrediente" oninput="escIngs['+i+'].nombre=this.value;recalcEsc()">'+
         '<input type="number" value="'+ing.cantidad+'" step="0.01" placeholder="Cant." oninput="escIngs['+i+'].cantidad=parseFloat(this.value)||0;recalcEsc()">'+
-        '<select onchange="escIngs['+i+'].unidad=this.value"><option'+(ing.unidad==='kg'?' selected':'')+'>kg</option><option'+(ing.unidad==='g'?' selected':'')+'>g</option><option'+(ing.unidad==='l'?' selected':'')+'>l</option><option'+(ing.unidad==='ml'?' selected':'')+'>ml</option><option'+(ing.unidad==='ud'?' selected':'')+'>ud</option></select>'+
-        '<input type="number" value="'+ing.coste+'" step="0.01" placeholder="Eur/ud" oninput="escIngs['+i+'].coste=parseFloat(this.value)||0;recalcEsc()">'+
+        '<select onchange="escIngs['+i+'].unidad=this.value">'+
+          '<option'+(ing.unidad==='kg'?' selected':'')+'>kg</option>'+
+          '<option'+(ing.unidad==='g'?' selected':'')+'>g</option>'+
+          '<option'+(ing.unidad==='l'?' selected':'')+'>l</option>'+
+          '<option'+(ing.unidad==='ml'?' selected':'')+'>ml</option>'+
+          '<option'+(ing.unidad==='ud'?' selected':'')+'>ud</option>'+
+        '</select>'+
+        '<input type="number" value="'+ing.coste+'" step="0.01" placeholder="EUR/ud" oninput="escIngs['+i+'].coste=parseFloat(this.value)||0;recalcEsc()">'+
         '<button onclick="escIngs.splice('+i+',1);window.escRender()" style="background:#fceaea;border:none;border-radius:4px;cursor:pointer;padding:2px 6px;color:#a32d2d">X</button>'+
       '</div>';
     }).join('');
     recalcEsc();
   }
   
-  window.escIngs=ings;
-  window.escRender=renderIngs;
+  window.escIngs = ings;
+  window.escRender = renderIngs;
   
-  var modalHtml=
-    '<div class="field" style="margin-bottom:10px"><span class="lbl">Nombre del plato</span>'+
-    '<input id="esc-nombre" value="'+(e?e.nombre:'')+'" placeholder="Ej: Ensalada Cesar" list="esc-platos-list">'+
-    '<datalist id="esc-platos-list">'+DB.platos.map(function(p){return '<option value="'+p.nombre+'">';}).join('')+'</datalist></div>'+
-    '<div class="lbl" style="margin-bottom:6px">Ingredientes <small style="color:#888">(cantidad x coste/unidad)</small></div>'+
-    '<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 28px;gap:6px;margin-bottom:4px">'+
-    '<span style="font-size:11px;color:#888">Ingrediente</span><span style="font-size:11px;color:#888">Cantidad</span><span style="font-size:11px;color:#888">Unidad</span><span style="font-size:11px;color:#888">Eur/unidad</span><span></span></div>'+
-    '<div id="esc-ings"></div>'+
-    '<button onclick="escIngs.push({nombre:\'\',cantidad:0,unidad:\'kg\',coste:0});escRender()" class="btn btn-ghost btn-sm" style="margin-top:6px">+ Ingrediente</button>'+
-    '<div style="background:#f7f5f0;border-radius:8px;padding:.75rem;margin-top:.875rem">'+
-    '<div style="display:flex;justify-content:space-between"><span class="lbl">Coste total ingredientes</span><strong id="esc-coste-total">0,00 EUR</strong></div>'+
-    '<div style="display:flex;justify-content:space-between;margin-top:4px"><span class="lbl">+ Merma ('+DB.config.merma+'%)</span><strong id="esc-coste-merma">0,00 EUR</strong></div>'+
-    '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:14px;color:#C8873A"><span><strong>Coste real por racion</strong></span><strong id="esc-coste-racion">0,00 EUR</strong></div>'+
-    '</div>';
+  var mh = '';
+  mh += '<div class="field" style="margin-bottom:10px"><span class="lbl">Nombre del plato</span>';
+  mh += '<input id="esc-nombre" value="'+(e?e.nombre:'')+'" placeholder="Ej: Ensalada Cesar" list="esc-platos-list">';
+  mh += '<datalist id="esc-platos-list">'+DB.platos.map(function(p){return '<option value="'+p.nombre+'">';}).join('')+'</datalist></div>';
+  mh += '<div class="lbl" style="margin-bottom:6px">Ingredientes <small style="color:#888">(cantidad x coste/unidad)</small></div>';
+  mh += '<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 28px;gap:6px;margin-bottom:4px">';
+  mh += '<span style="font-size:11px;color:#888">Ingrediente</span>';
+  mh += '<span style="font-size:11px;color:#888">Cantidad</span>';
+  mh += '<span style="font-size:11px;color:#888">Unidad</span>';
+  mh += '<span style="font-size:11px;color:#888">EUR/u</span><span></span></div>';
+  mh += '<div id="esc-ings"></div>';
+  mh += '<button id="btn-add-ing" class="btn btn-ghost btn-sm" style="margin-top:6px">+ Ingrediente</button>';
+  mh += '<div style="background:#f7f5f0;border-radius:8px;padding:.75rem;margin-top:.875rem">';
+  mh += '<div style="display:flex;justify-content:space-between"><span class="lbl">Coste total ingredientes</span><strong id="esc-coste-total">0,00 EUR</strong></div>';
+  mh += '<div style="display:flex;justify-content:space-between;margin-top:4px"><span class="lbl">Merma ('+DB.config.merma+'%)</span><strong id="esc-coste-merma">0,00 EUR</strong></div>';
+  mh += '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:14px;color:#C8873A"><span><strong>Coste real por racion</strong></span><strong id="esc-coste-racion">0,00 EUR</strong></div>';
+  mh += '</div>';
   
-  abrirModal(id?'Editar escandallo':'Nuevo escandallo', modalHtml, function(){
-    var costeBase=escIngs.reduce(function(s,i){return s+i.cantidad*i.coste;},0);
-    var costeTotal=costeBase*(1+DB.config.merma/100);
-    var obj={id:id||Date.now().toString(),nombre:gs('esc-nombre'),ingredientes:escIngs.slice(),costeTotal:costeTotal};
-    if(id){var idx=DB.escandallos.findIndex(function(x){return x.id===id;});if(idx>=0)DB.escandallos[idx]=obj;}
+  abrirModal(id ? 'Editar escandallo' : 'Nuevo escandallo', mh, function(){
+    var costeBase = escIngs.reduce(function(s,i){return s+i.cantidad*i.coste;}, 0);
+    var costeTotal = costeBase * (1 + DB.config.merma/100);
+    var obj = {id:id||Date.now().toString(), nombre:gs('esc-nombre'), ingredientes:escIngs.slice(), costeTotal:costeTotal};
+    if(id){var ix=DB.escandallos.findIndex(function(x){return x.id===id;}); if(ix>=0) DB.escandallos[ix]=obj;}
     else DB.escandallos.push(obj);
-    save();cerrarModal();renderEscandallos();
+    save(); cerrarModal(); renderEscandallos();
   });
   
   renderIngs();
   
-  window.recalcEsc=function(){
-    var base=escIngs.reduce(function(s,i){return s+i.cantidad*i.coste;},0);
-    var merma=base*DB.config.merma/100;
-    var total=base+merma;
-    if(document.getElementById('esc-coste-total')) document.getElementById('esc-coste-total').textContent=fmtE(base);
-    if(document.getElementById('esc-coste-merma')) document.getElementById('esc-coste-merma').textContent=fmtE(merma);
-    if(document.getElementById('esc-coste-racion')) document.getElementById('esc-coste-racion').textContent=fmtE(total);
+  // Attach add button after modal renders
+  setTimeout(function(){
+    var btn = document.getElementById('btn-add-ing');
+    if(btn) btn.onclick = function(){
+      escIngs.push({nombre:'',cantidad:0,unidad:'kg',coste:0});
+      window.escRender();
+    };
+  }, 50);
+  
+  window.recalcEsc = function(){
+    var base = escIngs.reduce(function(s,i){return s+i.cantidad*i.coste;}, 0);
+    var merma = base * DB.config.merma/100;
+    var total = base + merma;
+    var el1=document.getElementById('esc-coste-total');
+    var el2=document.getElementById('esc-coste-merma');
+    var el3=document.getElementById('esc-coste-racion');
+    if(el1) el1.textContent=fmtE(base);
+    if(el2) el2.textContent=fmtE(merma);
+    if(el3) el3.textContent=fmtE(total);
   };
 }
 
