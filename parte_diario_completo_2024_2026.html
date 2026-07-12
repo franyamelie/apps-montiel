@@ -142,6 +142,29 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
       <div id="tramos-lista"></div>
     </div>
   </div>
+
+  <!-- TARIFA ESPECIAL DÍA -->
+  <div class="card" style="border:1px dashed #C8873A;background:#fdf9f5;margin-bottom:.5rem">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:0">
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:500">
+        <input type="checkbox" id="chk-tarifa-especial" onchange="toggleTarifaEspecial()" style="width:auto">
+        Tarifa especial para este día
+      </label>
+      <span style="font-size:11px;color:#C8873A">(solo afecta a este parte)</span>
+    </div>
+    <div id="panel-tarifa-especial" style="display:none;margin-top:.875rem">
+      <div style="font-size:11px;color:#888;margin-bottom:.5rem">Deja en blanco los que no cambien — se usará la tarifa general para esos conceptos.</div>
+      <div class="grid3">
+        <div class="field"><span class="lbl">Dieta (EUR)</span><input type="number" id="te-dieta" placeholder="Tarifa general" min="0" step="0.5" oninput="actualizarPreview()"></div>
+        <div class="field"><span class="lbl">H. extra normal (EUR)</span><input type="number" id="te-hnormal" placeholder="Tarifa general" min="0" step="0.5" oninput="actualizarPreview()"></div>
+        <div class="field"><span class="lbl">H. extra nocturna (EUR)</span><input type="number" id="te-hnocturna" placeholder="Tarifa general" min="0" step="0.5" oninput="actualizarPreview()"></div>
+        <div class="field"><span class="lbl">H. extra festiva (EUR)</span><input type="number" id="te-hfestiva" placeholder="Tarifa general" min="0" step="0.5" oninput="actualizarPreview()"></div>
+        <div class="field"><span class="lbl">Viaje camión (EUR)</span><input type="number" id="te-vcamion" placeholder="Tarifa general" min="0" step="0.5" oninput="actualizarPreview()"></div>
+        <div class="field"><span class="lbl">Viaje coche (EUR)</span><input type="number" id="te-vcoche" placeholder="Tarifa general" min="0" step="0.1" oninput="actualizarPreview()"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="parte-preview" style="display:none" class="preview-box"></div>
   <div style="display:flex;gap:8px;justify-content:space-between;margin-top:.5rem;flex-wrap:wrap;align-items:center">
     <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;cursor:pointer">
@@ -320,7 +343,7 @@ function saveTarifas(){
 
 // ===== CALCULAR IMPORTE =====
 function calcImporte(p){
-  var t=getT(p.fecha.slice(0,7));
+  var t=Object.assign({},getT(p.fecha.slice(0,7)),p.tarifaEspecial||{});
   var td=p.dieta*t.dieta;
   var vc=p.vcamion*t.vcamion, vco=p.vcoche*t.vcoche;
   var he=0;
@@ -370,16 +393,41 @@ function limpiarTramos(){document.getElementById('tramos-lista').innerHTML='';}
 function actualizarPreview(){var p=buildParteObj();renderPreview(calcImporte(p),p.tramos);}
 
 // ===== NUEVO PARTE =====
+function toggleTarifaEspecial(){
+  var chk=document.getElementById('chk-tarifa-especial');
+  var panel=document.getElementById('panel-tarifa-especial');
+  panel.style.display=chk.checked?'':'none';
+  if(!chk.checked){
+    ['te-dieta','te-hnormal','te-hnocturna','te-hfestiva','te-vcamion','te-vcoche'].forEach(function(id){
+      document.getElementById(id).value='';
+    });
+  }
+  actualizarPreview();
+}
+
+function getTarifaEspecial(){
+  if(!document.getElementById('chk-tarifa-especial')?.checked) return null;
+  var te={};
+  var campos={dieta:'te-dieta',hnormal:'te-hnormal',hnocturna:'te-hnocturna',hfestiva:'te-hfestiva',vcamion:'te-vcamion',vcoche:'te-vcoche'};
+  var tieneAlgo=false;
+  Object.entries(campos).forEach(function(e){
+    var val=document.getElementById(e[1]).value;
+    if(val!==''){te[e[0]]=parseFloat(val)||0;tieneAlgo=true;}
+  });
+  return tieneAlgo?te:null;
+}
+
 function buildParteObj(){
   var fecha=gs('p-fecha')||new Date().toISOString().slice(0,10);
   var d=new Date(fecha+'T12:00:00');
   var tramos=getTramos();
   var totalExtras=tramos.reduce(function(s,t){return s+t.horas;},0);
   var tipoExtra=tramos.length>0?tramos[0].tipo:'normal';
+  var te=getTarifaEspecial();
   return {id:editandoId||Date.now(),fecha:fecha,dia:DIAS_ES[d.getDay()],nombre:gs('p-nombre'),lugar:gs('p-lugar'),
     hinicio:gs('p-hinicio'),hfin:gs('p-hfin'),trabajo:gs('p-trabajo'),
     horas:gv('p-horas'),extras:totalExtras,vcamion:gv('p-vcamion'),vcoche:gv('p-vcoche'),
-    dieta:parseInt(gs('p-dieta')),tipo_extra:tipoExtra,tramos:tramos};
+    dieta:parseInt(gs('p-dieta')),tipo_extra:tipoExtra,tramos:tramos,tarifaEspecial:te};
 }
 
 function renderPreview(imp,tramos){
@@ -433,6 +481,17 @@ function cargarParteEnFormulario(p){
   document.getElementById('lbl-modo').style.display='inline';
   document.getElementById('btn-cancelar').style.display='';
   document.getElementById('btn-guardar').textContent='\uD83D\uDCBE Actualizar parte';
+  // Restore tarifa especial if present
+  var te=p.tarifaEspecial;
+  if(te&&Object.keys(te).length>0){
+    document.getElementById('chk-tarifa-especial').checked=true;
+    document.getElementById('panel-tarifa-especial').style.display='';
+    var mapa={dieta:'te-dieta',hnormal:'te-hnormal',hnocturna:'te-hnocturna',hfestiva:'te-hfestiva',vcamion:'te-vcamion',vcoche:'te-vcoche'};
+    Object.entries(mapa).forEach(function(e){if(te[e[0]]!==undefined)document.getElementById(e[1]).value=te[e[0]];});
+  } else {
+    document.getElementById('chk-tarifa-especial').checked=false;
+    document.getElementById('panel-tarifa-especial').style.display='none';
+  }
   renderPreview(calcImporte(p),p.tramos||[]);
 }
 
@@ -449,6 +508,9 @@ function cancelarEdicion(){
   document.getElementById('p-hfin').value='17:00';
   document.getElementById('parte-preview').style.display='none';
   limpiarTramos();
+  document.getElementById('chk-tarifa-especial').checked=false;
+  document.getElementById('panel-tarifa-especial').style.display='none';
+  ['te-dieta','te-hnormal','te-hnocturna','te-hfestiva','te-vcamion','te-vcoche'].forEach(function(id){document.getElementById(id).value='';});
   var nd=new Date();nd.setDate(nd.getDate()+1);
   while(nd.getDay()===0||nd.getDay()===6)nd.setDate(nd.getDate()+1);
   document.getElementById('p-fecha').value=nd.toISOString().slice(0,10);
@@ -479,6 +541,9 @@ function guardarParte(){
   document.getElementById('p-dieta').value='0';
   document.getElementById('parte-preview').style.display='none';
   limpiarTramos();
+  document.getElementById('chk-tarifa-especial').checked=false;
+  document.getElementById('panel-tarifa-especial').style.display='none';
+  ['te-dieta','te-hnormal','te-hnocturna','te-hfestiva','te-vcamion','te-vcoche'].forEach(function(id){document.getElementById(id).value='';});
   var nd=new Date(p.fecha+'T12:00:00');nd.setDate(nd.getDate()+1);
   while(nd.getDay()===0||nd.getDay()===6)nd.setDate(nd.getDate()+1);
   document.getElementById('p-fecha').value=nd.toISOString().slice(0,10);
