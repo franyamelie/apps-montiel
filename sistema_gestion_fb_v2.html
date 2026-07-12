@@ -577,7 +577,7 @@ function renderInicio(){
   document.getElementById('top-platos').innerHTML=top.length?top.map(function(p,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0ede6"><span>'+(i+1)+'. '+p[0]+'</span><span class="badge badge-orange">'+p[1]+' pedidos</span></div>';}).join(''):'<div class="empty">Sin datos aún</div>';
 
   // Alertas stock
-  document.getElementById('alertas-stock').innerHTML=stockBajo.length?stockBajo.map(function(s){return '<div class="alert alert-err" style="margin-bottom:4px">⚠️ <strong>'+s.nombre+'</strong> — Stock: '+s.cantidad+' '+s.unidad+' (mín: '+s.minimo+')</div>';}).join(''):'<div class="alert alert-ok">✓ Todo el stock en niveles correctos</div>';
+  document.getElementById('alertas-stock').innerHTML=stockBajo.length?stockBajo.map(function(s){return '<div class="alert alert-err" style="margin-bottom:4px">⚠️ <strong>'+s.nombre+'</strong> - Stock: '+s.cantidad+' '+s.unidad+' (mín: '+s.minimo+')</div>';}).join(''):'<div class="alert alert-ok">✓ Todo el stock en niveles correctos</div>';
 
   // Resumen día
   document.getElementById('resumen-dia').innerHTML=
@@ -716,7 +716,7 @@ function abrirModalEscandallo(id){
     '<div class="field" style="margin-bottom:10px"><span class="lbl">Nombre del plato</span>'+
     '<input id="esc-nombre" value="'+(e?e.nombre:'')+'" placeholder="Ej: Ensalada César" list="esc-platos-list">'+
     '<datalist id="esc-platos-list">'+DB.platos.map(function(p){return '<option value="'+p.nombre+'">';}).join('')+'</datalist></div>'+
-    '<div class="lbl" style="margin-bottom:6px">Ingredientes <small style="color:#888">(cantidad × coste/unidad)</small></div>'+
+    '<div class="lbl" style="margin-bottom:6px">Ingredientes <small style="color:#888">(cantidad x coste/unidad)</small></div>'+
     '<div style="display:grid;grid-template-columns:1fr 80px 80px 80px 28px;gap:6px;margin-bottom:4px">'+
     '<span style="font-size:11px;color:#888">Ingrediente</span><span style="font-size:11px;color:#888">Cantidad</span><span style="font-size:11px;color:#888">Unidad</span><span style="font-size:11px;color:#888">€/unidad</span><span></span></div>'+
     '<div id="esc-ings"></div>'+
@@ -808,7 +808,7 @@ function editarStock(id){abrirModalStock(id);}
 function eliminarStock(id){if(confirm('¿Eliminar?')){DB.stock=DB.stock.filter(function(s){return s.id!==id;});save();renderStock();}}
 function ajustarStock(id){
   var s=DB.stock.find(function(x){return x.id===id;});if(!s)return;
-  var html='<div style="margin-bottom:10px"><strong>'+s.nombre+'</strong> — Stock actual: '+s.cantidad+' '+s.unidad+'</div>'+
+  var html='<div style="margin-bottom:10px"><strong>'+s.nombre+'</strong> - Stock actual: '+s.cantidad+' '+s.unidad+'</div>'+
     '<div class="grid2"><div class="field"><span class="lbl">Operación</span><select id="aj-op"><option value="add">+ Entrada (sumar)</option><option value="sub">- Salida (restar)</option><option value="set">= Fijar cantidad</option></select></div>'+
     '<div class="field"><span class="lbl">Cantidad</span><input type="number" id="aj-cant" value="0" min="0" step="0.01"></div></div>'+
     '<div class="field" style="margin-top:8px"><span class="lbl">Motivo</span><input id="aj-motivo" placeholder="Ej: Compra proveedor, Merma..."></div>';
