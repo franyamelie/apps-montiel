@@ -624,8 +624,8 @@ function renderCarta(){
             (coste>0?'<div style="font-size:11px;color:#888">Coste: '+fmt(coste)+' €</div>':'')+ 
             (coste>0?'<div class="badge badge-'+(margen>=60?'green':margen>=40?'orange':'red')+'" style="margin-top:4px">'+margen+'% margen</div>':'')+
             '<div style="display:flex;gap:5px;margin-top:8px;justify-content:flex-end">'+
-              '<button class="btn btn-ghost btn-sm" onclick="editarPlato(''+p.id+'')">✏</button>'+
-              '<button class="btn-danger" onclick="eliminarPlato(''+p.id+'')">✕</button>'+
+              '<button class="btn btn-ghost btn-sm" onclick="editarPlato(\''+p.id+'\')">✏</button>'+
+              '<button class="btn-danger" onclick="eliminarPlato(\''+p.id+'\')">✕</button>'+
             '</div>'+
           '</div>'+
         '</div>';
@@ -648,7 +648,7 @@ function abrirModalPlato(id){
     '<div class="alg-grid" id="mp-alg-grid">'+
       ALERGENOS_LISTA.map(function(a){
         var sel=p&&p.alergenos&&p.alergenos.includes(a.id);
-        return '<div class="alg-item'+(sel?' selected':'')+'" onclick="toggleAlgModal(''+a.id+'',this)">'+a.icon+' '+a.name+'</div>';
+        return '<div class="alg-item'+(sel?' selected':'')+'" onclick="toggleAlgModal(\''+a.id+'\',this)">'+a.icon+' '+a.name+'</div>';
       }).join('')+
     '</div></div>';
   abrirModal(id?'Editar plato':'Nuevo plato', html, function(){
@@ -687,7 +687,7 @@ function renderEscandallos(){
         '<td>'+(precio?fmtE(precio):'-')+'</td>'+
         '<td><span class="badge badge-'+(parseFloat(fc)<30?'green':parseFloat(fc)<40?'orange':'red')+'">'+fc+(fc!=='-'?'%':'')+'</span></td>'+
         '<td><span class="badge badge-'+(parseFloat(margen)>=60?'green':parseFloat(margen)>=40?'orange':'red')+'">'+margen+(margen!=='-'?'%':'')+'</span></td>'+
-        '<td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="editarEscandallo(''+e.id+'')">✏ Ver</button><button class="btn-danger" onclick="eliminarEscandallo(''+e.id+'')">✕</button></div></td>'+
+        '<td><div class="row-actions"><button class="btn btn-ghost btn-sm" onclick="editarEscandallo(\''+e.id+'\')">✏ Ver</button><button class="btn-danger" onclick="eliminarEscandallo(\''+e.id+'\')">✕</button></div></td>'+
       '</tr>';
     }).join('')+'</tbody></table></div>';
 }
@@ -777,9 +777,9 @@ function renderStock(){
         '<td style="font-size:11px;color:#888">'+(s.proveedor||'-')+'</td>'+
         '<td><span class="badge '+estado+'">'+estadoTxt+'</span></td>'+
         '<td><div class="row-actions">'+
-          '<button class="btn btn-ghost btn-sm" onclick="ajustarStock(''+s.id+'')">± Ajustar</button>'+
-          '<button class="btn btn-ghost btn-sm" onclick="editarStock(''+s.id+'')">✏</button>'+
-          '<button class="btn-danger" onclick="eliminarStock(''+s.id+'')">✕</button>'+
+          '<button class="btn btn-ghost btn-sm" onclick="ajustarStock(\''+s.id+'\')">± Ajustar</button>'+
+          '<button class="btn btn-ghost btn-sm" onclick="editarStock(\''+s.id+'\')">✏</button>'+
+          '<button class="btn-danger" onclick="eliminarStock(\''+s.id+'\')">✕</button>'+
         '</div></td>'+
       '</tr>';
     }).join('')+'</tbody></table></div>';
@@ -839,8 +839,8 @@ function renderProveedores(){
         '<td><a href="mailto:'+p.email+'" style="color:#185fa5;font-size:12px">'+(p.email||'-')+'</a></td>'+
         '<td style="font-size:12px">'+(p.diaPedido||'-')+'</td>'+
         '<td><div class="row-actions">'+
-          '<button class="btn btn-ghost btn-sm" onclick="editarProveedor(''+p.id+'')">✏</button>'+
-          '<button class="btn-danger" onclick="eliminarProveedor(''+p.id+'')">✕</button>'+
+          '<button class="btn btn-ghost btn-sm" onclick="editarProveedor(\''+p.id+'\')">✏</button>'+
+          '<button class="btn-danger" onclick="eliminarProveedor(\''+p.id+'\')">✕</button>'+
         '</div></td>'+
       '</tr>';
     }).join('')+'</tbody></table></div>';
@@ -885,7 +885,7 @@ function renderAlergenosPlato(){
     '<div class="alg-grid">'+
     ALERGENOS_LISTA.map(function(a){
       var sel=p.alergenos&&p.alergenos.includes(a.id);
-      return '<div class="alg-item'+(sel?' selected':'')+'" onclick="toggleAlgPlato(''+id+'',''+a.id+'',this)">'+a.icon+' '+a.name+'</div>';
+      return '<div class="alg-item'+(sel?' selected':'')+'" onclick="toggleAlgPlato(\''+id+'\',\''+a.id+'\',this)">'+a.icon+' '+a.name+'</div>';
     }).join('')+
     '</div></div>';
 }
@@ -916,7 +916,7 @@ function renderMesas(){
   var c=document.getElementById('grid-mesas');
   if(!DB.mesas.length){c.innerHTML='<div class="empty">Sin mesas configuradas.</div>';return;}
   c.innerHTML=DB.mesas.map(function(m){
-    return '<div class="mesa '+m.estado+'" onclick="cambiarEstadoMesa(''+m.id+'')">'+
+    return '<div class="mesa '+m.estado+'" onclick="cambiarEstadoMesa(\''+m.id+'\')">'+
       '<div class="mesa-num">'+m.num+'</div>'+
       '<div class="mesa-lbl">'+m.zona+'</div>'+
       '<div class="mesa-lbl">'+m.capacidad+' pax</div>'+
@@ -951,7 +951,7 @@ function renderReservas(){
   c.innerHTML='<table class="tbl"><thead><tr><th>Hora</th><th>Nombre</th><th>Pax</th><th>Mesa</th><th>Tel.</th><th>Notas</th><th></th></tr></thead><tbody>'+
     lista.map(function(r){
       return '<tr><td><strong>'+r.hora+'</strong></td><td>'+r.nombre+'</td><td style="text-align:center">'+r.pax+'</td><td style="text-align:center">'+(r.mesa||'-')+'</td><td>'+r.tel+'</td><td style="font-size:11px;color:#888">'+(r.notas||'')+'</td>'+
-        '<td><button class="btn-danger" onclick="eliminarReserva(''+r.id+'')">✕</button></td></tr>';
+        '<td><button class="btn-danger" onclick="eliminarReserva(\''+r.id+'\')">✕</button></td></tr>';
     }).join('')+'</tbody></table>';
 }
 function abrirModalReserva(){
@@ -1002,7 +1002,7 @@ function renderVentas(){
   t.innerHTML='<thead><tr><th>Fecha</th><th>Turno</th><th>Importe</th><th>Comensales</th><th>Pago</th><th>Notas</th><th></th></tr></thead><tbody>'+
     lista.map(function(v){
       return '<tr><td>'+v.fecha+'</td><td>'+v.turno+'</td><td><strong>'+fmtE(v.importe)+'</strong></td><td style="text-align:center">'+(v.comensales||'')+'</td><td><span class="badge badge-gray">'+v.pago+'</span></td><td style="font-size:11px;color:#888">'+(v.notas||'')+'</td>'+
-        '<td><button class="btn-danger" onclick="eliminarVenta(''+v.id+'')">✕</button></td></tr>';
+        '<td><button class="btn-danger" onclick="eliminarVenta(\''+v.id+'\')">✕</button></td></tr>';
     }).join('')+
     '<tr class="total"><td colspan="2">TOTAL</td><td>'+fmtE(lista.reduce(function(s,v){return s+v.importe;},0))+'</td><td style="text-align:center">'+lista.reduce(function(s,v){return s+(v.comensales||0);},0)+'</td><td colspan="3"></td></tr>'+
     '</tbody>';
@@ -1037,7 +1037,7 @@ function renderGastos(){
   t.innerHTML='<thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th>Importe</th><th></th></tr></thead><tbody>'+
     lista.map(function(g){
       return '<tr><td>'+g.fecha+'</td><td><span class="badge badge-blue">'+g.categoria+'</span></td><td>'+g.descripcion+'</td><td style="font-size:11px;color:#888">'+(g.proveedor||'-')+'</td><td><strong>'+fmtE(g.importe)+'</strong></td>'+
-        '<td><button class="btn-danger" onclick="eliminarGasto(''+g.id+'')">✕</button></td></tr>';
+        '<td><button class="btn-danger" onclick="eliminarGasto(\''+g.id+'\')">✕</button></td></tr>';
     }).join('')+
     '<tr class="total"><td colspan="4">TOTAL</td><td>'+fmtE(lista.reduce(function(s,g){return s+g.importe;},0))+'</td><td></td></tr>'+
     '</tbody>';
