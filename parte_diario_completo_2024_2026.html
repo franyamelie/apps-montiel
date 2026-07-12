@@ -623,26 +623,38 @@ function calcRango(dias,pdm){
     var ds=d.toISOString().slice(0,10),dw=d.getDay();
     var pds=pdm.filter(function(p){return p.fecha===ds;});
     if(!pds.length&&(dw===0||dw===6))return null;
-    var t=getT(ds.slice(0,7));
+    var tBase=getT(ds.slice(0,7)); // tarifa base del mes
     var dieta=0,hn=0,hno=0,hf=0,hnf=0,vc=0,vco=0;
+    var impH=0,impD=0,impVC=0,impVCo=0;
     pds.forEach(function(p){
-      dieta+=p.dieta;vc+=p.vcamion;vco+=p.vcoche;
+      // Usar tarifaEspecial del parte si existe, sino la tarifa base
+      var t=p.tarifaEspecial&&Object.keys(p.tarifaEspecial).length>0
+        ? Object.assign({},tBase,p.tarifaEspecial)
+        : tBase;
+      dieta+=p.dieta;
+      vc+=p.vcamion;
+      vco+=p.vcoche;
+      // Calcular importe dieta con la tarifa correcta de ESTE parte
+      impD+=p.dieta*t.dieta;
+      impVC+=p.vcamion*t.vcamion;
+      impVCo+=p.vcoche*t.vcoche;
+      // Horas con tarifa correcta de ESTE parte
       if(p.tramos&&p.tramos.length>0){
         p.tramos.forEach(function(tr){
-          if(tr.tipo==='nocturna') hno+=tr.horas;
-          else if(tr.tipo==='festiva') hf+=tr.horas;
-          else if(tr.tipo==='normal_fest') hnf+=tr.horas;
-          else hn+=tr.horas;
+          if(tr.tipo==='nocturna'){hno+=tr.horas;impH+=tr.horas*t.hnocturna;}
+          else if(tr.tipo==='festiva'){hf+=tr.horas;impH+=tr.horas*t.hfestiva;}
+          else if(tr.tipo==='normal_fest'){hnf+=tr.horas;impH+=tr.horas*t.hfestiva;}
+          else{hn+=tr.horas;impH+=tr.horas*t.hnormal;}
         });
       } else if(p.extras>0){
-        if(p.tipo_extra==='nocturna') hno+=p.extras;
-        else if(p.tipo_extra==='festiva') hf+=p.extras;
-        else hn+=p.extras;
+        if(p.tipo_extra==='nocturna'){hno+=p.extras;impH+=p.extras*t.hnocturna;}
+        else if(p.tipo_extra==='festiva'){hf+=p.extras;impH+=p.extras*t.hfestiva;}
+        else{hn+=p.extras;impH+=p.extras*t.hnormal;}
       }
     });
-    var impH=hn*t.hnormal+hno*t.hnocturna+hf*t.hfestiva+hnf*t.hfestiva;
-    var impD=dieta*t.dieta,impT=impH+vc*t.vcamion+vco*t.vcoche+impD;
-    totD+=dieta;totHN+=hn;totHNo+=hno;totHF+=hf;totHNF+=hnf;totVC+=vc;totVCo+=vco;totImpH+=impH;totImpD+=impD;totImpT+=impT;
+    var impT=impH+impD+impVC+impVCo;
+    totD+=dieta;totHN+=hn;totHNo+=hno;totHF+=hf;totHNF+=hnf;totVC+=vc;totVCo+=vco;
+    totImpH+=impH;totImpD+=impD;totImpT+=impT;
     return{ds:ds,dia:DIAS_ES[dw],dieta:dieta,hn:hn,hno:hno,hf:hf,hnf:hnf,vc:vc,vco:vco,impH:impH,impD:impD,impT:impT,tienePartes:pds.length>0};
   }).filter(function(r){return r!==null&&r.tienePartes;});
   return{rows:rows,totD:totD,totHN:totHN,totHNo:totHNo,totHF:totHF,totHNF:totHNF,totVC:totVC,totVCo:totVCo,totImpH:totImpH,totImpD:totImpD,totImpT:totImpT};
