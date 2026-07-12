@@ -617,39 +617,47 @@ function renderPartes(){
 }
 
 // ===== CALCULAR RANGO =====
+function addPrecio(desg,campo,cantidad,precio){
+  if(!cantidad) return;
+  var k=String(precio);
+  if(!desg[campo]) desg[campo]={};
+  desg[campo][k]=(desg[campo][k]||0)+cantidad;
+}
+
 function calcRango(dias,pdm){
   var totD=0,totHN=0,totHNo=0,totHF=0,totHNF=0,totVC=0,totVCo=0,totImpH=0,totImpD=0,totImpT=0;
+  var desgPrecios={dieta:{},hnormal:{},hnocturna:{},hfestiva:{},hnf:{},vcamion:{},vcoche:{}};
   var rows=dias.map(function(d){
     var ds=d.toISOString().slice(0,10),dw=d.getDay();
     var pds=pdm.filter(function(p){return p.fecha===ds;});
     if(!pds.length&&(dw===0||dw===6))return null;
-    var tBase=getT(ds.slice(0,7)); // tarifa base del mes
+    var tBase=getT(ds.slice(0,7));
     var dieta=0,hn=0,hno=0,hf=0,hnf=0,vc=0,vco=0;
     var impH=0,impD=0,impVC=0,impVCo=0;
     pds.forEach(function(p){
-      // Usar tarifaEspecial del parte si existe, sino la tarifa base
       var t=p.tarifaEspecial&&Object.keys(p.tarifaEspecial).length>0
         ? Object.assign({},tBase,p.tarifaEspecial)
         : tBase;
       dieta+=p.dieta;
       vc+=p.vcamion;
       vco+=p.vcoche;
-      // Calcular importe dieta con la tarifa correcta de ESTE parte
       impD+=p.dieta*t.dieta;
       impVC+=p.vcamion*t.vcamion;
       impVCo+=p.vcoche*t.vcoche;
-      // Horas con tarifa correcta de ESTE parte
+      addPrecio(desgPrecios,'dieta',p.dieta,t.dieta);
+      addPrecio(desgPrecios,'vcamion',p.vcamion,t.vcamion);
+      addPrecio(desgPrecios,'vcoche',p.vcoche,t.vcoche);
       if(p.tramos&&p.tramos.length>0){
         p.tramos.forEach(function(tr){
-          if(tr.tipo==='nocturna'){hno+=tr.horas;impH+=tr.horas*t.hnocturna;}
-          else if(tr.tipo==='festiva'){hf+=tr.horas;impH+=tr.horas*t.hfestiva;}
-          else if(tr.tipo==='normal_fest'){hnf+=tr.horas;impH+=tr.horas*t.hfestiva;}
-          else{hn+=tr.horas;impH+=tr.horas*t.hnormal;}
+          if(tr.tipo==='nocturna'){hno+=tr.horas;impH+=tr.horas*t.hnocturna;addPrecio(desgPrecios,'hnocturna',tr.horas,t.hnocturna);}
+          else if(tr.tipo==='festiva'){hf+=tr.horas;impH+=tr.horas*t.hfestiva;addPrecio(desgPrecios,'hfestiva',tr.horas,t.hfestiva);}
+          else if(tr.tipo==='normal_fest'){hnf+=tr.horas;impH+=tr.horas*t.hfestiva;addPrecio(desgPrecios,'hnf',tr.horas,t.hfestiva);}
+          else{hn+=tr.horas;impH+=tr.horas*t.hnormal;addPrecio(desgPrecios,'hnormal',tr.horas,t.hnormal);}
         });
       } else if(p.extras>0){
-        if(p.tipo_extra==='nocturna'){hno+=p.extras;impH+=p.extras*t.hnocturna;}
-        else if(p.tipo_extra==='festiva'){hf+=p.extras;impH+=p.extras*t.hfestiva;}
-        else{hn+=p.extras;impH+=p.extras*t.hnormal;}
+        if(p.tipo_extra==='nocturna'){hno+=p.extras;impH+=p.extras*t.hnocturna;addPrecio(desgPrecios,'hnocturna',p.extras,t.hnocturna);}
+        else if(p.tipo_extra==='festiva'){hf+=p.extras;impH+=p.extras*t.hfestiva;addPrecio(desgPrecios,'hfestiva',p.extras,t.hfestiva);}
+        else{hn+=p.extras;impH+=p.extras*t.hnormal;addPrecio(desgPrecios,'hnormal',p.extras,t.hnormal);}
       }
     });
     var impT=impH+impD+impVC+impVCo;
@@ -657,7 +665,7 @@ function calcRango(dias,pdm){
     totImpH+=impH;totImpD+=impD;totImpT+=impT;
     return{ds:ds,dia:DIAS_ES[dw],dieta:dieta,hn:hn,hno:hno,hf:hf,hnf:hnf,vc:vc,vco:vco,impH:impH,impD:impD,impT:impT,tienePartes:pds.length>0};
   }).filter(function(r){return r!==null&&r.tienePartes;});
-  return{rows:rows,totD:totD,totHN:totHN,totHNo:totHNo,totHF:totHF,totHNF:totHNF,totVC:totVC,totVCo:totVCo,totImpH:totImpH,totImpD:totImpD,totImpT:totImpT};
+  return{rows:rows,totD:totD,totHN:totHN,totHNo:totHNo,totHF:totHF,totHNF:totHNF,totVC:totVC,totVCo:totVCo,totImpH:totImpH,totImpD:totImpD,totImpT:totImpT,desgPrecios:desgPrecios};
 }
 
 function getDiasEnRango(desde,hasta){
@@ -701,7 +709,7 @@ function renderMensual(){
   var cr=calcRango(dias,pdm);
   var rows=cr.rows,totD=cr.totD,totHN=cr.totHN,totHNo=cr.totHNo,totHF=cr.totHF,totHNF=cr.totHNF,totVC=cr.totVC,totVCo=cr.totVCo,totImpH=cr.totImpH,totImpT=cr.totImpT;
   var dev=totImpT+t0.sueldo+t0.guardia;
-  _lastResumen={titulo:titulo,totD:totD,totHN:totHN,totHNo:totHNo,totHF:totHF,totHNF:totHNF,totVC:totVC,totVCo:totVCo,totImpH:totImpH,totImpT:totImpT,t0:t0,esRango:esRango,dev:dev};
+  _lastResumen={titulo:titulo,totD:totD,totHN:totHN,totHNo:totHNo,totHF:totHF,totHNF:totHNF,totVC:totVC,totVCo:totVCo,totImpH:totImpH,totImpT:totImpT,t0:t0,esRango:esRango,dev:dev,desgPrecios:dp};
   var mostrarImp=document.getElementById('chk-importes')?.checked!==false;
 
   document.getElementById('stats-mensual').innerHTML=
@@ -727,15 +735,28 @@ function renderMensual(){
     +'</tr>';
   document.getElementById('tabla-mensual').innerHTML='<thead>'+th+'</thead><tbody>'+tb+totalrow+'</tbody>';
 
+  var dp=cr.desgPrecios||{};
+  function liqLineas(campo,etiqueta,esHoras){
+    var lines='';
+    var precios=dp[campo]||{};
+    var keys=Object.keys(precios).map(Number).sort(function(a,b){return b-a;});
+    keys.forEach(function(pr){
+      var cant=precios[String(pr)];
+      if(!cant) return;
+      var cantStr=esHoras?fmtN(cant):cant;
+      var importe=cant*pr;
+      lines+='<div class="importe-row"><span>'+cantStr+(esHoras?'h ':' ')+etiqueta+' &times; '+fmt2(pr)+' &euro;</span><span>'+fmt2(importe)+' &euro;</span></div>';
+    });
+    return lines;
+  }
   var boxHTML='<div style="font-size:11px;font-weight:600;color:#185FA5;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem">Liquidaci&oacute;n &mdash; '+titulo+'</div>';
-  if(esRango) boxHTML+='<div style="font-size:11px;color:#888780;margin-bottom:.5rem">Tarifas del primer mes del periodo.</div>';
-  if(totD>0) boxHTML+='<div class="importe-row"><span>'+totD+' dieta'+(totD>1?'s':'')+' &times; '+t0.dieta+' &euro;</span><span>'+fmt2(totD*t0.dieta)+' &euro;</span></div>';
-  if(totHN>0) boxHTML+='<div class="importe-row"><span>'+fmtN(totHN)+'h extras normales &times; '+t0.hnormal+' &euro;</span><span>'+fmt2(totHN*t0.hnormal)+' &euro;</span></div>';
-  if(totHNo>0) boxHTML+='<div class="importe-row"><span>'+fmtN(totHNo)+'h extras nocturnas &times; '+t0.hnocturna+' &euro;</span><span>'+fmt2(totHNo*t0.hnocturna)+' &euro;</span></div>';
-  if(totHF>0) boxHTML+='<div class="importe-row"><span>'+fmtN(totHF)+'h extras festivas &times; '+t0.hfestiva+' &euro;</span><span>'+fmt2(totHF*t0.hfestiva)+' &euro;</span></div>';
-  if(totHNF>0) boxHTML+='<div class="importe-row"><span>'+fmtN(totHNF)+'h normales festivo &times; '+t0.hfestiva+' &euro;</span><span>'+fmt2(totHNF*t0.hfestiva)+' &euro;</span></div>';
-  if(totVC>0) boxHTML+='<div class="importe-row"><span>'+totVC+' viaje'+(totVC>1?'s':'')+' cami&oacute;n &times; '+t0.vcamion+' &euro;</span><span>'+fmt2(totVC*t0.vcamion)+' &euro;</span></div>';
-  if(totVCo>0) boxHTML+='<div class="importe-row"><span>'+totVCo+' viaje'+(totVCo>1?'s':'')+' coche &times; '+t0.vcoche+' &euro;</span><span>'+fmt2(totVCo*t0.vcoche)+' &euro;</span></div>';
+  boxHTML+=liqLineas('dieta','dieta'+(totD>1?'s':''),false);
+  boxHTML+=liqLineas('hnormal','extras normales',true);
+  boxHTML+=liqLineas('hnocturna','extras nocturnas',true);
+  boxHTML+=liqLineas('hfestiva','extras festivas',true);
+  boxHTML+=liqLineas('hnf','normales festivo',true);
+  boxHTML+=liqLineas('vcamion','viaje'+(totVC>1?'s':'')+' cami&oacute;n',false);
+  boxHTML+=liqLineas('vcoche','viaje'+(totVCo>1?'s':'')+' coche',false);
   boxHTML+='<div style="border-top:1px solid #378ADD;margin:.5rem 0"></div>';
   boxHTML+='<div class="importe-row"><span style="font-weight:600">Subtotal extras y dietas</span><span style="font-weight:600">'+fmt2(totImpT)+' &euro;</span></div>';
   if(!esRango){
