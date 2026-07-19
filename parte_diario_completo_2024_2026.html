@@ -63,18 +63,19 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
 
 .fmt-bar{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
 .fmt-btn{
-  width:38px;height:38px;border:2px solid #1a5276;border-radius:8px;
-  background:#fff;cursor:pointer;font-size:15px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;
+  width:60px;height:60px;border:2px solid #1a5276;border-radius:8px;
+  background:#fff;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
   color:#1a5276;user-select:none;-webkit-user-select:none;
   transition:background .15s,color .15s;flex-shrink:0;
+  overflow:hidden;box-sizing:border-box;padding:4px 2px;
 }
 .fmt-btn:active{background:#1a5276;color:#fff;}
-.fmt-btn.fmt-N{font-family:serif;font-weight:900;}
-.fmt-btn.fmt-K{font-family:serif;font-style:italic;font-weight:400;}
-.fmt-btn.fmt-S{text-decoration:underline;}
-.fmt-btn.fmt-T{text-decoration:line-through;font-weight:400;}
-.fmt-lbl{font-size:9px;display:block;line-height:1;margin-top:2px;letter-spacing:.03em;}
+.fmt-btn.fmt-N .fmt-ico{font-family:serif;font-weight:900;font-size:22px;}
+.fmt-btn.fmt-K .fmt-ico{font-family:serif;font-style:italic;font-size:22px;}
+.fmt-btn.fmt-S .fmt-ico{text-decoration:underline;font-size:22px;font-weight:700;}
+.fmt-btn.fmt-T .fmt-ico{text-decoration:line-through;font-size:14px;}
+.fmt-lbl{font-size:8px;display:block;line-height:1.1;margin-top:2px;letter-spacing:.02em;font-weight:600;font-style:normal;text-decoration:none;}
 #p-trabajo{font-family:monospace;font-size:13px;min-height:90px;}
 </style>
 </head>
@@ -136,10 +137,10 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
     <div class="field" style="margin-bottom:10px">
       <span class="lbl">Trabajo realizado</span>
       <div class="fmt-bar" id="fmt-bar-trabajo">
-  <button type="button" class="fmt-btn fmt-N" onclick="fmtApply('p-trabajo','**','**')" title="Negrita">N<span class="fmt-lbl">NEGRITA</span></button>
-  <button type="button" class="fmt-btn fmt-K" onclick="fmtApply('p-trabajo','_','_')" title="Cursiva">K<span class="fmt-lbl">CURSIVA</span></button>
-  <button type="button" class="fmt-btn fmt-S" onclick="fmtApply('p-trabajo','__','__')" title="Subrayado">S<span class="fmt-lbl">SUBRAY.</span></button>
-  <button type="button" class="fmt-btn fmt-T" onclick="fmtApply('p-trabajo','~~','~~')" title="Tachado" style="font-size:13px">abc<span class="fmt-lbl">TACHADO</span></button>
+  <button type="button" class="fmt-btn fmt-N" onclick="fmtApply('p-trabajo','**','**')" title="Negrita"><span class="fmt-ico">N</span><span class="fmt-lbl">NEGRITA</span></button>
+  <button type="button" class="fmt-btn fmt-K" onclick="fmtApply('p-trabajo','_','_')" title="Cursiva"><span class="fmt-ico">K</span><span class="fmt-lbl">CURSIVA</span></button>
+  <button type="button" class="fmt-btn fmt-S" onclick="fmtApply('p-trabajo','__','__')" title="Subrayado"><span class="fmt-ico">S</span><span class="fmt-lbl">SUBRAY.</span></button>
+  <button type="button" class="fmt-btn fmt-T" onclick="fmtApply('p-trabajo','~~','~~')" title="Tachado"><span class="fmt-ico">abc</span><span class="fmt-lbl">TACHADO</span></button>
 </div>
 <textarea id="p-trabajo" placeholder="Describe el trabajo realizado durante la jornada..."></textarea>
     </div>

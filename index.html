@@ -30,8 +30,8 @@ footer{margin-top:3rem;font-size:11px;color:#b4b2a9;text-align:center}
     <div class="card-icon">📅</div>
     <div>
       <div class="card-title">Parte Diario de Trabajo</div>
-      <div class="card-desc">FRAN (CHÓFER) · 2024–2026<br>492 partes · Resumen mensual · PDF · WhatsApp</div>
-      <span class="badge">492 partes registrados</span>
+      <div class="card-desc">FRAN (CHÓFER) · 2024–2026<br><span id="pd-count-desc">Resumen mensual · PDF · WhatsApp</span></div>
+      <span class="badge" id="pd-count-badge">Cargando...</span>
     </div>
   </a>
   <a class="card" href="sistema_gestion_fb_v2.html">
@@ -44,5 +44,21 @@ footer{margin-top:3rem;font-size:11px;color:#b4b2a9;text-align:center}
   </a>
 </div>
 <footer>Para añadir a pantalla de inicio: menú del navegador → "Añadir a pantalla de inicio"</footer>
+<script>
+(function(){
+  try{
+    var raw=localStorage.getItem('pd_all_partes');
+    var partes=raw?JSON.parse(raw):[];
+    var n=partes.length;
+    var badge=document.getElementById('pd-count-badge');
+    var desc=document.getElementById('pd-count-desc');
+    if(badge) badge.textContent=n+' partes registrados';
+    if(desc) desc.textContent=n+' partes · Resumen mensual · PDF · WhatsApp';
+  }catch(e){
+    var badge=document.getElementById('pd-count-badge');
+    if(badge) badge.textContent='Ver partes';
+  }
+})();
+</script>
 </body>
 </html>
