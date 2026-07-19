@@ -76,7 +76,13 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
 .fmt-btn.fmt-S .fmt-ico{text-decoration:underline;font-size:22px;font-weight:700;}
 .fmt-btn.fmt-T .fmt-ico{text-decoration:line-through;font-size:14px;}
 .fmt-lbl{font-size:8px;display:block;line-height:1.1;margin-top:2px;letter-spacing:.02em;font-weight:600;font-style:normal;text-decoration:none;}
-#p-trabajo{font-family:monospace;font-size:13px;min-height:90px;}
+#p-trabajo-editor:empty:before{
+  content:attr(placeholder);color:#aaa;pointer-events:none;
+}
+#p-trabajo-editor b, #p-trabajo-editor strong{font-weight:bold;}
+#p-trabajo-editor i, #p-trabajo-editor em{font-style:italic;}
+#p-trabajo-editor u{text-decoration:underline;}
+#p-trabajo-editor s, #p-trabajo-editor strike{text-decoration:line-through;}
 </style>
 </head>
 <body>
@@ -137,12 +143,20 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
     <div class="field" style="margin-bottom:10px">
       <span class="lbl">Trabajo realizado</span>
       <div class="fmt-bar" id="fmt-bar-trabajo">
-  <button type="button" class="fmt-btn fmt-N" onclick="fmtApply('p-trabajo','**','**')" title="Negrita"><span class="fmt-ico">N</span><span class="fmt-lbl">NEGRITA</span></button>
-  <button type="button" class="fmt-btn fmt-K" onclick="fmtApply('p-trabajo','_','_')" title="Cursiva"><span class="fmt-ico">K</span><span class="fmt-lbl">CURSIVA</span></button>
-  <button type="button" class="fmt-btn fmt-S" onclick="fmtApply('p-trabajo','__','__')" title="Subrayado"><span class="fmt-ico">S</span><span class="fmt-lbl">SUBRAY.</span></button>
-  <button type="button" class="fmt-btn fmt-T" onclick="fmtApply('p-trabajo','~~','~~')" title="Tachado"><span class="fmt-ico">abc</span><span class="fmt-lbl">TACHADO</span></button>
+  <button type="button" class="fmt-btn fmt-N" onclick="fmtApply('p-trabajo','bold')" title="Negrita"><span class="fmt-ico">N</span><span class="fmt-lbl">NEGRITA</span></button>
+  <button type="button" class="fmt-btn fmt-K" onclick="fmtApply('p-trabajo','italic')" title="Cursiva"><span class="fmt-ico">K</span><span class="fmt-lbl">CURSIVA</span></button>
+  <button type="button" class="fmt-btn fmt-S" onclick="fmtApply('p-trabajo','underline')" title="Subrayado"><span class="fmt-ico">S</span><span class="fmt-lbl">SUBRAY.</span></button>
+  <button type="button" class="fmt-btn fmt-T" onclick="fmtApply('p-trabajo','strikeThrough')" title="Tachado"><span class="fmt-ico">abc</span><span class="fmt-lbl">TACHADO</span></button>
 </div>
-<textarea id="p-trabajo" placeholder="Describe el trabajo realizado durante la jornada..."></textarea>
+<div id="p-trabajo-editor" contenteditable="true" 
+  style="min-height:90px;border:1px solid #ccc;border-radius:4px;padding:8px;
+  font-size:13px;font-family:system-ui,sans-serif;background:#fff;
+  outline:none;line-height:1.5;white-space:pre-wrap;word-break:break-word;"
+  placeholder="Describe el trabajo realizado durante la jornada..."
+  oninput="document.getElementById('p-trabajo').value=this.innerHTML;"
+  onfocus="if(this.innerHTML===''){this.style.color='#333';}"
+></div>
+<input type="hidden" id="p-trabajo" value="">
     </div>
     <div class="grid2" style="margin-bottom:10px">
       <div class="field"><span class="lbl">Total horas jornada</span><input type="number" id="p-horas" value="8" min="0" step="0.5"></div>
@@ -448,7 +462,7 @@ function buildParteObj(){
   var tipoExtra=tramos.length>0?tramos[0].tipo:'normal';
   var te=getTarifaEspecial();
   return {id:editandoId||Date.now(),fecha:fecha,dia:DIAS_ES[d.getDay()],nombre:gs('p-nombre'),lugar:gs('p-lugar'),
-    hinicio:gs('p-hinicio'),hfin:gs('p-hfin'),trabajo:gs('p-trabajo'),
+    hinicio:gs('p-hinicio'),hfin:gs('p-hfin'),trabajo:(function(){var ed=document.getElementById('p-trabajo-editor');if(ed){document.getElementById('p-trabajo').value=ed.innerHTML;}return gs('p-trabajo');})(),
     horas:gv('p-horas'),extras:totalExtras,vcamion:gv('p-vcamion'),vcoche:gv('p-vcoche'),
     dieta:parseInt(gs('p-dieta')),tipo_extra:tipoExtra,tramos:tramos,tarifaEspecial:te};
 }
@@ -490,7 +504,9 @@ function cargarParteEnFormulario(p){
   document.getElementById('p-lugar').value=p.lugar||'';
   document.getElementById('p-hinicio').value=p.hinicio||'08:00';
   document.getElementById('p-hfin').value=p.hfin||'17:00';
-  document.getElementById('p-trabajo').value=p.trabajo||'';
+  var _ed=document.getElementById('p-trabajo-editor');
+  if(_ed){_ed.innerHTML=p.trabajo||'';document.getElementById('p-trabajo').value=p.trabajo||'';}
+  else document.getElementById('p-trabajo').value=p.trabajo||'';
   document.getElementById('p-horas').value=p.horas||8;
   document.getElementById('p-vcamion').value=p.vcamion||0;
   document.getElementById('p-vcoche').value=p.vcoche||0;
@@ -523,7 +539,11 @@ function cancelarEdicion(){
   document.getElementById('lbl-modo').style.display='none';
   document.getElementById('btn-cancelar').style.display='none';
   document.getElementById('btn-guardar').textContent='\uD83D\uDCBE Guardar parte';
-  ['p-trabajo','p-lugar'].forEach(function(id){document.getElementById(id).value='';});
+  ['p-trabajo','p-lugar'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.value='';
+    var ed=document.getElementById(id+'-editor');
+    if(ed) ed.innerHTML='';});
   ['p-vcamion','p-vcoche'].forEach(function(id){document.getElementById(id).value='0';});
   document.getElementById('p-horas').value='8';
   document.getElementById('p-dieta').value='0';
@@ -558,7 +578,11 @@ function guardarParte(){
   }
   partes.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
   save();
-  ['p-trabajo','p-lugar'].forEach(function(id){document.getElementById(id).value='';});
+  ['p-trabajo','p-lugar'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.value='';
+    var ed=document.getElementById(id+'-editor');
+    if(ed) ed.innerHTML='';});
   ['p-vcamion','p-vcoche'].forEach(function(id){document.getElementById(id).value='0';});
   document.getElementById('p-horas').value='8';
   document.getElementById('p-dieta').value='0';
@@ -1324,22 +1348,13 @@ function compartirDiaEmail(){var p=buildParteObj();var conImp=getConImpNuevo();v
 function exportDiaPDFFormulario(){exportDiaPDFPorParte(buildParteObj(),getConImpNuevo());}
 function exportDiaImagenFormulario(){var p=buildParteObj();exportDiaImagenPorId(p.id,getConImpNuevo(),p);}
 
-// ── BARRA DE FORMATO ─────────────────────────────────────
-function fmtApply(id, before, after){
-  const el = document.getElementById(id);
-  if(!el) return;
-  const start = el.selectionStart;
-  const end   = el.selectionEnd;
-  const val   = el.value;
-  const sel   = val.substring(start, end);
-  const replacement = before + (sel || 'texto') + after;
-  el.value = val.substring(0, start) + replacement + val.substring(end);
-  // Reselect the inner text
-  const newStart = start + before.length;
-  const newEnd   = newStart + (sel || 'texto').length;
-  el.setSelectionRange(newStart, newEnd);
-  el.focus();
-  // Trigger input event so the app knows value changed
-  el.dispatchEvent(new Event('input', {bubbles:true}));
+// ── BARRA DE FORMATO RICH TEXT ───────────────────────────
+function fmtApply(id, cmd){
+  var editor = document.getElementById(id+'-editor');
+  if(!editor) return;
+  editor.focus();
+  document.execCommand(cmd, false, null);
+  // Sync to hidden input
+  document.getElementById(id).value = editor.innerHTML;
 }
 </script>
