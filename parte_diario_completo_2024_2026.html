@@ -559,6 +559,24 @@ function cancelarEdicion(){
   document.getElementById('p-fecha').value=nd.toISOString().slice(0,10);
 }
 
+// Recordatorio de copia de seguridad tras guardar un parte, para no depender
+// de acordarse manualmente de exportar el backup.
+function mostrarRecordatorioBackup(){
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML=
+    '<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.4);text-align:center">'
+    +'<div style="font-size:1.8rem;margin-bottom:.4rem">\uD83D\uDCBE</div>'
+    +'<div style="font-weight:800;font-size:1.05rem;color:#1e293b;margin-bottom:.3rem">Parte guardado</div>'
+    +'<div style="font-size:.85rem;color:#64748b;margin-bottom:1.2rem">\u00bfQuieres hacer copia de seguridad ahora, por si acaso?</div>'
+    +'<button id="rb-backup" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:8px;padding:.7rem;font-weight:700;font-size:.9rem;cursor:pointer;margin-bottom:.6rem">\u2B07 Backup JSON</button>'
+    +'<button id="rb-cerrar" style="width:100%;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:.7rem;font-size:.85rem;cursor:pointer">Ahora no</button>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('rb-backup').onclick=function(){ exportBackup(); document.body.removeChild(overlay); };
+  document.getElementById('rb-cerrar').onclick=function(){ document.body.removeChild(overlay); };
+}
+
 function guardarParte(){
   var p=buildParteObj();
   if(!p.fecha){alert('Selecciona una fecha');return;}
@@ -595,6 +613,7 @@ function guardarParte(){
   while(nd.getDay()===0||nd.getDay()===6)nd.setDate(nd.getDate()+1);
   document.getElementById('p-fecha').value=nd.toISOString().slice(0,10);
   document.getElementById('total-count').textContent=partes.length;
+  mostrarRecordatorioBackup();
 }
 
 // ===== LISTA PARTES =====
