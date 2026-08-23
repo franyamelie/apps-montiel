@@ -516,6 +516,8 @@ function cargarParteEnFormulario(p){
     p.tramos.forEach(function(tr){addTramo(tr.horas,tr.tipo);});
   } else if(p.extras>0){
     addTramo(p.extras,p.tipo_extra||'normal');
+  } else {
+    addTramo(); // deja siempre una fila lista para meter horas extra
   }
   document.getElementById('lbl-modo').style.display='inline';
   document.getElementById('btn-cancelar').style.display='';
@@ -551,6 +553,7 @@ function cancelarEdicion(){
   document.getElementById('p-hfin').value='17:00';
   document.getElementById('parte-preview').style.display='none';
   limpiarTramos();
+  addTramo(); // deja siempre una fila lista para meter horas extra
   document.getElementById('chk-tarifa-especial').checked=false;
   document.getElementById('panel-tarifa-especial').style.display='none';
   ['te-dieta','te-hnormal','te-hnocturna','te-hfestiva','te-vcamion','te-vcoche'].forEach(function(id){document.getElementById(id).value='';});
@@ -606,6 +609,7 @@ function guardarParte(){
   document.getElementById('p-dieta').value='0';
   document.getElementById('parte-preview').style.display='none';
   limpiarTramos();
+  addTramo(); // deja siempre una fila lista para meter horas extra
   document.getElementById('chk-tarifa-especial').checked=false;
   document.getElementById('panel-tarifa-especial').style.display='none';
   ['te-dieta','te-hnormal','te-hnocturna','te-hfestiva','te-vcamion','te-vcoche'].forEach(function(id){document.getElementById(id).value='';});
