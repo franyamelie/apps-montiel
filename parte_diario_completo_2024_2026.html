@@ -128,16 +128,25 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
       <div class="field">
         <span class="lbl">Hora comienzo</span>
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="time" id="p-hinicio" value="08:00" style="flex:1">
+          <input type="time" id="p-hinicio" value="08:00" style="flex:1" oninput="calcularHorasAutomatico()">
           <button type="button" onclick="abrirReloj('p-hinicio','Hora comienzo')" style="background:#185FA5;color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:16px" title="Seleccionar con reloj">&#x1F551;</button>
         </div>
       </div>
       <div class="field">
         <span class="lbl">Hora final</span>
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="time" id="p-hfin" value="17:00" style="flex:1">
+          <input type="time" id="p-hfin" value="17:00" style="flex:1" oninput="calcularHorasAutomatico()">
           <button type="button" onclick="abrirReloj('p-hfin','Hora final')" style="background:#185FA5;color:#fff;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:16px" title="Seleccionar con reloj">&#x1F551;</button>
         </div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-bottom:10px">
+      <div class="field">
+        <span class="lbl">Descanso (minutos)</span>
+        <input type="number" id="p-descanso" value="0" min="0" step="5" oninput="calcularHorasAutomatico()">
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <span id="p-horas-auto-info" style="font-size:11.5px;color:#185FA5;font-weight:600"></span>
       </div>
     </div>
     <div class="field" style="margin-bottom:10px">
@@ -427,6 +436,54 @@ function addTramo(horas,tipo){
   lista.appendChild(div);
 }
 function limpiarTramos(){document.getElementById('tramos-lista').innerHTML='';}
+
+// Calcula automáticamente horas normales (hasta 8h) y horas extra a partir de
+// Hora comienzo, Hora final y Descanso (minutos). El usuario puede seguir
+// editando manualmente el resultado (total de horas, y el tipo/horas del
+// tramo extra) sin que se le sobrescriba, salvo que vuelva a tocar el horario.
+function calcularHorasAutomatico(){
+  var hi=document.getElementById('p-hinicio').value;
+  var hf=document.getElementById('p-hfin').value;
+  var descansoEl=document.getElementById('p-descanso');
+  var descanso=descansoEl?(parseInt(descansoEl.value)||0):0;
+  var info=document.getElementById('p-horas-auto-info');
+  if(!hi||!hf){ if(info) info.textContent=''; return; }
+  var p1=hi.split(':').map(Number), p2=hf.split(':').map(Number);
+  var mins1=p1[0]*60+p1[1], mins2=p2[0]*60+p2[1];
+  var totalMin=mins2-mins1;
+  if(totalMin<0) totalMin+=24*60; // jornada que cruza la medianoche
+  totalMin-=descanso;
+  if(totalMin<0) totalMin=0;
+  var totalHoras=Math.round((totalMin/60)*100)/100;
+  var normales=Math.min(totalHoras,8);
+  var extra=Math.round(Math.max(0,totalHoras-8)*100)/100;
+  document.getElementById('p-horas').value=normales;
+  var autoRow=document.getElementById('tramo-auto');
+  if(extra>0){
+    if(autoRow){
+      autoRow.querySelector('.tramo-h').value=extra;
+    } else {
+      addTramoAuto(extra,'normal');
+    }
+  } else if(autoRow){
+    autoRow.remove();
+  }
+  if(info){
+    info.textContent = totalHoras>0
+      ? ('Calculado: '+totalHoras+'h totales → '+normales+'h normales'+(extra>0?' + '+extra+'h extra':''))
+      : '';
+  }
+  if(typeof actualizarPreview==='function') actualizarPreview();
+}
+// Igual que addTramo, pero marca la fila como "automática" (tramo-auto) para
+// poder actualizarla sola cuando cambie el horario, sin tocar tramos que el
+// usuario haya añadido a mano con "+ Añadir tramo".
+function addTramoAuto(horas,tipo){
+  addTramo(horas,tipo);
+  var lista=document.getElementById('tramos-lista');
+  var last=lista.lastElementChild;
+  if(last) last.id='tramo-auto';
+}
 function actualizarPreview(){var p=buildParteObj();renderPreview(calcImporte(p),p.tramos);}
 
 // ===== NUEVO PARTE =====
@@ -462,7 +519,7 @@ function buildParteObj(){
   var tipoExtra=tramos.length>0?tramos[0].tipo:'normal';
   var te=getTarifaEspecial();
   return {id:editandoId||Date.now(),fecha:fecha,dia:DIAS_ES[d.getDay()],nombre:gs('p-nombre'),lugar:gs('p-lugar'),
-    hinicio:gs('p-hinicio'),hfin:gs('p-hfin'),trabajo:(function(){var ed=document.getElementById('p-trabajo-editor');if(ed){document.getElementById('p-trabajo').value=ed.innerHTML;}return gs('p-trabajo');})(),
+    hinicio:gs('p-hinicio'),hfin:gs('p-hfin'),descanso:gv('p-descanso')||0,trabajo:(function(){var ed=document.getElementById('p-trabajo-editor');if(ed){document.getElementById('p-trabajo').value=ed.innerHTML;}return gs('p-trabajo');})(),
     horas:gv('p-horas'),extras:totalExtras,vcamion:gv('p-vcamion'),vcoche:gv('p-vcoche'),
     dieta:parseInt(gs('p-dieta')),tipo_extra:tipoExtra,tramos:tramos,tarifaEspecial:te};
 }
@@ -504,6 +561,8 @@ function cargarParteEnFormulario(p){
   document.getElementById('p-lugar').value=p.lugar||'';
   document.getElementById('p-hinicio').value=p.hinicio||'08:00';
   document.getElementById('p-hfin').value=p.hfin||'17:00';
+  var _descEl=document.getElementById('p-descanso'); if(_descEl) _descEl.value=p.descanso||0;
+  var _infoEl=document.getElementById('p-horas-auto-info'); if(_infoEl) _infoEl.textContent='';
   var _ed=document.getElementById('p-trabajo-editor');
   if(_ed){_ed.innerHTML=p.trabajo||'';document.getElementById('p-trabajo').value=p.trabajo||'';}
   else document.getElementById('p-trabajo').value=p.trabajo||'';
@@ -551,6 +610,7 @@ function cancelarEdicion(){
   document.getElementById('p-dieta').value='0';
   document.getElementById('p-hinicio').value='08:00';
   document.getElementById('p-hfin').value='17:00';
+  (function(){var d=document.getElementById('p-descanso');if(d)d.value='0';var i=document.getElementById('p-horas-auto-info');if(i)i.textContent='';})();
   document.getElementById('parte-preview').style.display='none';
   limpiarTramos();
   addTramo(); // deja siempre una fila lista para meter horas extra
@@ -607,6 +667,7 @@ function guardarParte(){
   ['p-vcamion','p-vcoche'].forEach(function(id){document.getElementById(id).value='0';});
   document.getElementById('p-horas').value='8';
   document.getElementById('p-dieta').value='0';
+  (function(){var d=document.getElementById('p-descanso');if(d)d.value='0';var i=document.getElementById('p-horas-auto-info');if(i)i.textContent='';})();
   document.getElementById('parte-preview').style.display='none';
   limpiarTramos();
   addTramo(); // deja siempre una fila lista para meter horas extra
