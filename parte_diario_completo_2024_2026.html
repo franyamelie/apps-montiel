@@ -83,6 +83,14 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
 #p-trabajo-editor i, #p-trabajo-editor em{font-style:italic;}
 #p-trabajo-editor u{text-decoration:underline;}
 #p-trabajo-editor s, #p-trabajo-editor strike{text-decoration:line-through;}
+/* Evita que un color de fondo pegado desde Word/WhatsApp/email se quede
+   "pegado" en el texto de forma permanente (se veía como una franja de
+   color aunque no estuviera seleccionado). Fuerza siempre fondo transparente
+   en el editor y en cualquier elemento interno (span, etc.) que lo traiga. */
+#p-trabajo-editor, #p-trabajo-editor *{
+  background-color:transparent!important;
+  background-image:none!important;
+}
 </style>
 </head>
 <body>
@@ -1441,4 +1449,51 @@ function fmtApply(id, cmd){
   // Sync to hidden input
   document.getElementById(id).value = editor.innerHTML;
 }
+
+// ── LIMPIEZA DE COLOR DE FONDO EN EL EDITOR (notas/trabajo) ──────
+// Un texto pegado desde Word/WhatsApp/email/TimerPro puede traer un color
+// de fondo que se queda guardado en el HTML aunque no se note a simple
+// vista. Si luego se copia ESE texto hacia otra app, el color de fondo
+// viaja con él. Se limpia en los dos sentidos: al pegar DENTRO del editor
+// (para que no se llegue a guardar) y al copiar FUERA de él (para que el
+// texto que ya se había guardado con color tampoco lo arrastre).
+function _limpiarFondoHTML(root){
+  root.querySelectorAll('*').forEach(function(n){
+    n.style.removeProperty('background-color');
+    n.style.removeProperty('background');
+    n.removeAttribute('bgcolor');
+  });
+  root.style.removeProperty('background-color');
+  root.style.removeProperty('background');
+  return root.innerHTML;
+}
+document.addEventListener('paste', function(ev){
+  var target=ev.target;
+  var editable=target && target.closest && target.closest('[contenteditable="true"]');
+  if(!editable) return;
+  ev.preventDefault();
+  var cd=ev.clipboardData||window.clipboardData;
+  var html=cd?cd.getData('text/html'):'';
+  var text=cd?(cd.getData('text/plain')||''):'';
+  var tmp=document.createElement('div');
+  if(html){ tmp.innerHTML=html; _limpiarFondoHTML(tmp); }
+  else { tmp.innerText=text; }
+  document.execCommand('insertHTML', false, tmp.innerHTML);
+  if(editable.id==='p-trabajo-editor') document.getElementById('p-trabajo').value=editable.innerHTML;
+});
+document.addEventListener('copy', function(ev){
+  var sel=window.getSelection();
+  if(!sel||sel.rangeCount===0||sel.isCollapsed) return;
+  var anchor=sel.anchorNode;
+  var node=anchor&&(anchor.nodeType===1?anchor:anchor.parentElement);
+  var editable=node&&node.closest&&node.closest('[contenteditable="true"]');
+  if(!editable || !ev.clipboardData) return;
+  var range=sel.getRangeAt(0);
+  var tmp=document.createElement('div');
+  tmp.appendChild(range.cloneContents());
+  var cleanHtml=_limpiarFondoHTML(tmp);
+  ev.clipboardData.setData('text/html', cleanHtml);
+  ev.clipboardData.setData('text/plain', tmp.textContent||'');
+  ev.preventDefault();
+});
 </script>
