@@ -98,13 +98,15 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
 <h1>&#x1F4C5; Parte Diario de Trabajo &mdash; FRAN (CH&Oacute;FER)</h1>
 <div class="sub">
   <span>Talleres Montiel S.L. &middot; 2024&ndash;2026 &middot; <strong id="total-count">500</strong> partes</span>
-  <span id="build-marca" style="font-size:10px;font-weight:700;color:#185FA5">build-20261102-horario</span>
+  <span id="build-marca" style="font-size:10px;font-weight:700;color:#185FA5">build-20261102-nube1</span>
+  <span id="nube-estado" style="font-size:11px;font-weight:600"></span>
   <button onclick="exportBackup()">&#x2B07; Backup JSON</button>
   <button class="ghost" onclick="document.getElementById('imp-file').click()">&#x2B06; Importar JSON</button>
   <button class="ghost" onclick="mostrarAyudaSync()">&#x1F4F6; Sincronizar</button>
   <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importBackup(event)">
 </div>
 <div id="sync-panel" style="display:none;background:#fff;border:1px solid #d3d1c7;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;font-size:13px">
+  <div id="nube-panel" style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #d3d1c7"></div>
   <div style="font-size:14px;font-weight:600;color:#185FA5;margin-bottom:.75rem">Como usar en varios dispositivos</div>
   <div class="grid2">
     <div><strong>Exportar:</strong> Backup JSON &rarr; guarda el .json &rarr; envialo por WhatsApp o Drive</div>
@@ -379,7 +381,7 @@ let tarifasCustom=JSON.parse(localStorage.getItem('pd_all_tarifas')||'{}');
 let editandoId=null;
 let _lastResumen=null;
 
-function save(){try{localStorage.setItem('pd_all_partes',JSON.stringify(partes));}catch(e){}}
+function save(){try{localStorage.setItem('pd_all_partes',JSON.stringify(partes));}catch(e){}pdNubeCambio();}
 function getT(mes){return Object.assign({},T_DEFAULT,TARIFAS_HISTORICAS[mes]||{},tarifasCustom);}
 function gv(id){return parseFloat(document.getElementById(id)?.value)||0;}
 function gs(id){return document.getElementById(id)?.value||'';}
@@ -410,6 +412,7 @@ function loadTarifas(){
 function saveTarifas(){
   tarifasCustom={dieta:gv('t-dieta'),hnormal:gv('t-hnormal'),hnocturna:gv('t-hnocturna'),hfestiva:gv('t-hfestiva'),vcamion:gv('t-vcamion'),vcoche:gv('t-vcoche'),sueldo:gv('t-sueldo'),guardia:gv('t-guardia')};
   try{localStorage.setItem('pd_all_tarifas',JSON.stringify(tarifasCustom));}catch(e){}
+  pdNubeCambio();
   alert('Tarifas guardadas.');
 }
 
@@ -704,7 +707,7 @@ function guardarParte(){
   while(nd.getDay()===0||nd.getDay()===6)nd.setDate(nd.getDate()+1);
   document.getElementById('p-fecha').value=nd.toISOString().slice(0,10);
   document.getElementById('total-count').textContent=partes.length;
-  mostrarRecordatorioBackup();
+  if(!pdNubeActiva())mostrarRecordatorioBackup();
 }
 
 // ===== LISTA PARTES =====
@@ -1394,10 +1397,276 @@ function mostrarAyudaSync(){
   div.style.display=div.style.display==='none'?'':'none';
 }
 
+// ===== SINCRONIZACION CON SUPABASE =====
+var NUBE_TABLA='partes_diarios',NUBE_TARIFAS='tarifas';
+var _nubeOcupada=false,_nubeOtra=false,_nubeUltima=0,_nubeTimer=null;
+function nLee(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function nPon(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function nConf(){return nLee('pd_sb_conf',null);}
+function nSesion(){return nLee('pd_sb_sesion',null);}
+function pdNubeActiva(){return !!(nConf()&&nSesion());}
+function nCanon(o){
+  if(o===null||typeof o!=='object')return JSON.stringify(o);
+  if(Array.isArray(o))return '['+o.map(nCanon).join(',')+']';
+  return '{'+Object.keys(o).filter(function(k){return o[k]!==undefined;}).sort().map(function(k){return JSON.stringify(k)+':'+nCanon(o[k]);}).join(',')+'}';
+}
+function nHash(o){
+  var s=nCanon(o),a=5381,b=52711;
+  for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);a=(a*33)^c;b=(b*31)^c;a|=0;b|=0;}
+  return s.length+':'+(a>>>0).toString(16)+':'+(b>>>0).toString(16);
+}
+function nEstado(txt,color){
+  var el=document.getElementById('nube-estado');
+  if(el){el.textContent=txt;el.style.color=color||'#185FA5';}
+}
+function nError(m){var e=new Error(m);e.humano=true;return e;}
+function nGuardaSesion(j){nPon('pd_sb_sesion',{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+(j.expires_in||3600)*1000});}
+async function nToken(){
+  var s=nSesion(),c=nConf();
+  if(!s)throw nError('Hay que volver a entrar con la contraseña.');
+  if(Date.now()<s.exp-60000)return s.access;
+  var r=await fetch(c.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh})});
+  if(!r.ok){localStorage.removeItem('pd_sb_sesion');throw nError('La sesión ha caducado. Vuelve a entrar con la contraseña.');}
+  nGuardaSesion(await r.json());
+  return nSesion().access;
+}
+async function nApi(ruta,op){
+  op=op||{};
+  var c=nConf(),h=Object.assign({apikey:c.key,Authorization:'Bearer '+(await nToken())},op.headers||{});
+  var r=await fetch(c.url+'/rest/v1/'+ruta,Object.assign({},op,{headers:h}));
+  if(r.status===404)throw nError('Falta crear la tabla de partes en Supabase. Ejecuta el código de preparación.');
+  if(r.status===401||r.status===403)throw nError('Supabase no permite el acceso. Revisa el código de preparación y tu correo.');
+  if(!r.ok)throw nError('Supabase ha respondido con el error '+r.status+'.');
+  return r;
+}
+async function nTraeTodo(){
+  var filas=[],off=0;
+  while(true){
+    var r=await nApi(NUBE_TABLA+'?select=id,datos,actualizado,borrado&order=id&limit=1000&offset='+off);
+    var t=await r.json();filas=filas.concat(t);
+    if(t.length<1000)break;
+    off+=1000;
+  }
+  return filas;
+}
+function nMapaPartes(){var m={};partes.forEach(function(p){m[String(p.id)]=p;});return m;}
+/* Detecta lo que ha cambiado en este dispositivo. No toca la forma de guardar de la app. */
+function pdNubeCambio(){
+  if(!pdNubeActiva())return;
+  var esp=nLee('pd_sb_espejo',{}),cola=nLee('pd_sb_cola',{}),m=nMapaPartes(),ahora=new Date().toISOString();
+  Object.keys(m).forEach(function(id){
+    var h=nHash(m[id]);
+    if(esp[id]!==h&&!(cola[id]&&!cola[id].borrado&&cola[id].h===h))cola[id]={t:ahora,h:h};
+  });
+  var quitados=Object.keys(esp).filter(function(id){return id!==NUBE_TARIFAS&&!m[id];});
+  /* Importar un JSON sustituye la lista: no se borra nada en la nube por eso. */
+  if(quitados.length<=1)quitados.forEach(function(id){cola[id]={t:ahora,borrado:true};});
+  Object.keys(cola).forEach(function(id){
+    if(id!==NUBE_TARIFAS&&!cola[id].borrado&&!m[id]){
+      if(esp[id])cola[id]={t:ahora,borrado:true};else delete cola[id];
+    }
+  });
+  var ht=nHash(tarifasCustom);
+  if(esp[NUBE_TARIFAS]!==ht&&Object.keys(tarifasCustom).length)cola[NUBE_TARIFAS]={t:ahora,h:ht};
+  nPon('pd_sb_cola',cola);
+  nEstado('⏳ Guardando...');
+  clearTimeout(_nubeTimer);
+  _nubeTimer=setTimeout(function(){pdNubeSync(true);},300);
+}
+async function nSube(){
+  var cola=nLee('pd_sb_cola',{}),ids=Object.keys(cola);
+  if(!ids.length)return;
+  var m=nMapaPartes(),filas=[],enviados={};
+  ids.forEach(function(id){
+    var c=cola[id];
+    if(c.borrado)filas.push({id:id,datos:{},actualizado:c.t,borrado:true});
+    else if(id===NUBE_TARIFAS)filas.push({id:id,datos:tarifasCustom,actualizado:c.t,borrado:false});
+    else if(m[id])filas.push({id:id,datos:m[id],actualizado:c.t,borrado:false});
+    else return;
+    enviados[id]=c.t;
+  });
+  for(var i=0;i<filas.length;i+=200){
+    await nApi(NUBE_TABLA+'?on_conflict=id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(filas.slice(i,i+200))});
+  }
+  var esp=nLee('pd_sb_espejo',{}),c2=nLee('pd_sb_cola',{});
+  filas.forEach(function(f){
+    if(f.borrado)delete esp[f.id];else esp[f.id]=nHash(f.datos);
+    if(c2[f.id]&&c2[f.id].t===enviados[f.id])delete c2[f.id];
+  });
+  nPon('pd_sb_espejo',esp);nPon('pd_sb_cola',c2);
+}
+function nGuardaLocal(){
+  try{localStorage.setItem('pd_all_partes',JSON.stringify(partes));localStorage.setItem('pd_all_tarifas',JSON.stringify(tarifasCustom));}catch(e){}
+}
+function nRefresca(cambioTarifas){
+  document.getElementById('total-count').textContent=partes.length;
+  var ve=function(id){var el=document.getElementById(id);return el&&el.style.display!=='none';};
+  if(ve('tab-partes')){buildFiltroMes();renderPartes();}
+  if(ve('tab-mensual')){buildSelMes();renderMensual();}
+  if(cambioTarifas&&ve('tab-tarifas'))loadTarifas();
+}
+/* Aplica lo que llega de la nube. En un mismo parte gana el último cambio. */
+function nAplica(filas){
+  var esp=nLee('pd_sb_espejo',{}),cola=nLee('pd_sb_cola',{}),m=nMapaPartes(),cambio=false,camT=false;
+  filas.forEach(function(f){
+    var id=String(f.id),h=f.borrado?null:nHash(f.datos),pend=cola[id];
+    if(pend){
+      if(new Date(f.actualizado).getTime()<=new Date(pend.t).getTime())return;
+      delete cola[id];
+    }
+    if(id===NUBE_TARIFAS){
+      if(!f.borrado&&nHash(tarifasCustom)!==h){tarifasCustom=f.datos;camT=true;}
+      if(h)esp[id]=h;
+      return;
+    }
+    if(f.borrado){
+      if(m[id]){partes=partes.filter(function(p){return String(p.id)!==id;});delete m[id];cambio=true;}
+      delete esp[id];
+      return;
+    }
+    if(!m[id]){partes.push(f.datos);m[id]=f.datos;cambio=true;}
+    else if(nHash(m[id])!==h){
+      var i=partes.findIndex(function(p){return String(p.id)===id;});
+      partes[i]=f.datos;m[id]=f.datos;cambio=true;
+    }
+    esp[id]=h;
+  });
+  nPon('pd_sb_espejo',esp);nPon('pd_sb_cola',cola);
+  if(cambio)partes.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  if(cambio||camT){nGuardaLocal();nRefresca(camT);}
+}
+async function pdNubeSync(forzar){
+  if(!pdNubeActiva())return;
+  if(!navigator.onLine){nEstado('⚠ Sin internet: se guardará al volver','#a15c00');return;}
+  if(!forzar&&Date.now()-_nubeUltima<15000)return;
+  if(_nubeOcupada){_nubeOtra=true;return;}
+  _nubeOcupada=true;_nubeUltima=Date.now();
+  try{
+    nEstado('⏳ Sincronizando...');
+    /* Primero se lee: así un cambio antiguo no pisa uno más reciente de otro dispositivo. */
+    nAplica(await nTraeTodo());
+    await nSube();
+    nEstado('☁ Sincronizado '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    var pend=Object.keys(nLee('pd_sb_cola',{})).length;
+    nEstado('⚠ '+(e.humano?e.message:'No se ha podido conectar.')+(pend?' Quedan '+pend+' cambios por subir, no se pierden.':''),'#a32d2d');
+  }finally{
+    _nubeOcupada=false;
+    if(_nubeOtra){_nubeOtra=false;setTimeout(function(){pdNubeSync(true);},200);}
+    nPintaPanel();
+  }
+}
+function nElige(titulo,texto,a,b){
+  return new Promise(function(res){
+    var o=document.createElement('div');
+    o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    o.innerHTML='<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;text-align:center">'
+      +'<div style="font-weight:800;font-size:1.15rem;color:#1e293b;margin-bottom:.5rem">'+titulo+'</div>'
+      +'<div style="font-size:1rem;color:#334155;margin-bottom:1.2rem;line-height:1.45">'+texto+'</div>'
+      +'<button id="n-a" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:8px;padding:.8rem;font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:.6rem">'+a+'</button>'
+      +'<button id="n-b" style="width:100%;background:#f1f5f9;color:#1e293b;border:none;border-radius:8px;padding:.8rem;font-weight:700;font-size:1rem;cursor:pointer">'+b+'</button></div>';
+    document.body.appendChild(o);
+    document.getElementById('n-a').onclick=function(){document.body.removeChild(o);res('a');};
+    document.getElementById('n-b').onclick=function(){document.body.removeChild(o);res('b');};
+  });
+}
+/* Primera conexión de cada dispositivo: copia de seguridad y unión sin perder partes. */
+async function pdNubeConectar(){
+  var v=function(id){return (document.getElementById(id).value||'').trim();};
+  var c={url:v('nube-url').replace(/\/+$/,''),key:v('nube-key'),email:v('nube-email').toLowerCase()},pass=document.getElementById('nube-pass').value;
+  var msg=function(t){var el=document.getElementById('nube-msg');if(el)el.textContent=t;};
+  if(!/^https:\/\/[^\/]+$/.test(c.url)||!c.key||!c.email||!pass){msg('Faltan datos: dirección, clave, correo o contraseña.');return;}
+  var previa=nConf();
+  try{
+    msg('Conectando...');
+    var r=await fetch(c.url+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({email:c.email,password:pass})});
+    if(r.status===400||r.status===401)throw nError('El correo o la contraseña no son correctos.');
+    if(!r.ok)throw nError('Supabase ha rechazado la entrada (error '+r.status+').');
+    nPon('pd_sb_conf',c);nGuardaSesion(await r.json());
+    var esPrimera=!nLee('pd_sb_unido',false);
+    if(esPrimera){
+      var remotas=await nTraeTodo();
+      exportBackup();
+      var vivas={},muertas={},hayTar=null;
+      remotas.forEach(function(f){var id=String(f.id);if(id===NUBE_TARIFAS){if(!f.borrado)hayTar=f;}else if(f.borrado)muertas[id]=f;else vivas[id]=f;});
+      var m=nMapaPartes(),ahora=new Date().toISOString(),esp={},cola={},nubeVacia=remotas.length===0;
+      var base={};PARTES_BASE.forEach(function(p){base[String(p.id)]=nHash(p);});
+      var distintos=Object.keys(m).filter(function(id){var h=nHash(m[id]);return vivas[id]&&nHash(vivas[id].datos)!==h&&base[id]!==h;});
+      var tarDif=hayTar&&Object.keys(tarifasCustom).length&&nHash(hayTar.datos)!==nHash(tarifasCustom);
+      var usarNube=true;
+      if(distintos.length||tarDif){
+        var e=await nElige('Hay diferencias','Ya hay datos en la nube y '+distintos.length+' partes de este dispositivo son distintos'+(tarDif?', además de las tarifas':'')+'. Ya se ha descargado una copia de este dispositivo. ¿Qué datos quieres conservar?','Usar los de la nube','Usar los de este dispositivo');
+        usarNube=e==='a';
+      }
+      Object.keys(m).forEach(function(id){
+        var h=nHash(m[id]);
+        if(muertas[id]){partes=partes.filter(function(p){return String(p.id)!==id;});return;}
+        if(vivas[id]){
+          var hr=nHash(vivas[id].datos);
+          if(hr===h)esp[id]=h;
+          else if(usarNube||base[id]===h)esp[id]=null;
+          else cola[id]={t:ahora,h:h};
+          return;
+        }
+        if(!nubeVacia&&base[id]===h){partes=partes.filter(function(p){return String(p.id)!==id;});return;}
+        cola[id]={t:ahora,h:h};
+      });
+      if(nubeVacia)Object.keys(base).forEach(function(id){if(!m[id])cola[id]={t:ahora,borrado:true};});
+      if(hayTar&&!usarNube&&tarDif)cola[NUBE_TARIFAS]={t:ahora,h:nHash(tarifasCustom)};
+      else if(!hayTar&&Object.keys(tarifasCustom).length)cola[NUBE_TARIFAS]={t:ahora,h:nHash(tarifasCustom)};
+      Object.keys(esp).forEach(function(k){if(esp[k]===null)delete esp[k];});
+      nPon('pd_sb_espejo',esp);nPon('pd_sb_cola',cola);
+      nGuardaLocal();
+      nAplica(remotas);
+      nRefresca(true);
+      nPon('pd_sb_unido',true);
+    }
+    document.getElementById('nube-pass').value='';
+    await pdNubeSync(true);
+    alert('Conectado. '+partes.length+' partes sincronizados.');
+    nPintaPanel();
+  }catch(err){
+    if(!nLee('pd_sb_unido',false)||!nSesion()){if(previa)nPon('pd_sb_conf',previa);else localStorage.removeItem('pd_sb_conf');localStorage.removeItem('pd_sb_sesion');}
+    msg(err.humano?err.message:'No se ha podido conectar con Supabase. Si lleva días sin usarse, abre el proyecto y pulsa Resume project.');
+    nEstado('');
+  }
+}
+function pdNubeSalir(){
+  if(!confirm('¿Desconectar este dispositivo? Los partes se quedan aquí y en la nube, pero dejarán de sincronizarse.'))return;
+  localStorage.removeItem('pd_sb_sesion');
+  nEstado('');nPintaPanel();
+}
+function nPintaPanel(){
+  var el=document.getElementById('nube-panel');if(!el)return;
+  var esc=function(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+  if(pdNubeActiva()){
+    var pend=Object.keys(nLee('pd_sb_cola',{})).length;
+    el.innerHTML='<div style="font-size:14px;font-weight:600;color:#185FA5;margin-bottom:.4rem">Sincronización automática activada</div>'
+      +'<div style="margin-bottom:.6rem">Cada parte se guarda solo en la nube y aparece en tus otros dispositivos al abrir la app o volver a ella. '+(pend?'Quedan '+pend+' cambios por subir.':'Todo subido.')+' Los botones de JSON siguen disponibles como copia de seguridad.</div>'
+      +'<button class="btn btn-primary" onclick="pdNubeSync(true)">Sincronizar ahora</button> <button class="btn" onclick="pdNubeSalir()">Desconectar este dispositivo</button>';
+    return;
+  }
+  var ant=nConf()||nLee('deca_conf',{})||{};
+  el.innerHTML='<div style="font-size:14px;font-weight:600;color:#185FA5;margin-bottom:.4rem">Sincronización automática</div>'
+    +'<div style="margin-bottom:.6rem">Se conecta una vez por dispositivo. Empieza por el que tenga los partes más al día. Antes de unir los datos se descarga una copia en JSON.</div>'
+    +'<div class="grid2">'
+    +'<div><label>Dirección del proyecto</label><input id="nube-url" value="'+esc(ant.url)+'" autocomplete="off"></div>'
+    +'<div><label>Clave pública</label><input id="nube-key" value="'+esc(ant.key)+'" autocomplete="off"></div>'
+    +'<div><label>Correo</label><input id="nube-email" type="email" value="'+esc(ant.email)+'" autocomplete="off"></div>'
+    +'<div><label>Contraseña</label><input id="nube-pass" type="password" autocomplete="current-password"></div>'
+    +'</div><div id="nube-msg" style="color:#a32d2d;font-weight:600;margin:.5rem 0"></div>'
+    +'<button class="btn btn-primary" onclick="pdNubeConectar()">Conectar y sincronizar</button>';
+}
+window.addEventListener('focus',function(){pdNubeSync(false);});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)pdNubeSync(false);});
+window.addEventListener('online',function(){pdNubeSync(true);});
+
 // ===== INIT =====
 document.getElementById('p-fecha').value=new Date().toISOString().slice(0,10);
 document.getElementById('total-count').textContent=partes.length;
 addTramo();
+nPintaPanel();
+if(pdNubeActiva())setTimeout(function(){pdNubeSync(true);},100);
 
 // ===== RELOJ SELECTOR (estilo TimerPro) =====
 var _relojInputId = '';
