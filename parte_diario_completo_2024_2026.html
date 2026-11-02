@@ -98,7 +98,7 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
 <h1>&#x1F4C5; Parte Diario de Trabajo &mdash; FRAN (CH&Oacute;FER)</h1>
 <div class="sub">
   <span>Talleres Montiel S.L. &middot; 2024&ndash;2026 &middot; <strong id="total-count">500</strong> partes</span>
-  <span id="build-marca" style="font-size:10px;font-weight:700;color:#185FA5">build-20261012-compartir</span>
+  <span id="build-marca" style="font-size:10px;font-weight:700;color:#185FA5">build-20261102-horario</span>
   <button onclick="exportBackup()">&#x2B07; Backup JSON</button>
   <button class="ghost" onclick="document.getElementById('imp-file').click()">&#x2B06; Importar JSON</button>
   <button class="ghost" onclick="mostrarAyudaSync()">&#x1F4F6; Sincronizar</button>
@@ -1148,7 +1148,7 @@ function aceptarOpcionesCompartir(){
 }
 // Atajos para pedir las opciones según el caso
 function pedirOpcionesDia(p,cb){
-  abrirOpcionesCompartir(conceptosDeParte(p),[{k:'total',label:'Total del día',precio:true}],cb);
+  abrirOpcionesCompartir(conceptosDeParte(p),[{k:'horario',label:'Horario (hora de entrada y salida)',precio:false},{k:'total',label:'Total del día',precio:true}],cb);
 }
 function pedirOpcionesResumen(cb){
   var r=_lastResumen; if(!r){alert('Genera primero un resumen');return;}
@@ -1210,7 +1210,8 @@ function buildTextoResumenDia(p,conImp,F){
   var imp=calcImporte(p);
   var t=imp.t||getT(p.fecha.slice(0,7));
   var sep='-------------------';
-  var L=['PARTE DIARIO - '+p.fecha.split('-').reverse().join('.')+' ('+p.dia+')','Trabajador: '+p.nombre,'Lugar: '+(p.lugar||'-'),'Horario: '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' | '+p.horas+'h'];
+  var L=['PARTE DIARIO - '+p.fecha.split('-').reverse().join('.')+' ('+p.dia+')','Trabajador: '+p.nombre,'Lugar: '+(p.lugar||'-')];
+  if(fFlag(F,'horario')) L.push('Horario: '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' | '+p.horas+'h');
   if(p.trabajo){L.push('');L.push('Trabajo:');L.push(p.trabajo);}
   if(conImp){
     var _lin=[];
@@ -1269,7 +1270,7 @@ function exportDiaPDFPorParte(p,conImp,F){
   doc.text(p.nombre+' - Talleres Montiel S.L.',100,20);
   doc.setTextColor(40);doc.setFontSize(10);var y=36;
   doc.setFont(undefined,'bold');doc.text('Lugar:',14,y);doc.setFont(undefined,'normal');doc.text(p.lugar||'-',45,y);y+=7;
-  doc.setFont(undefined,'bold');doc.text('Horario:',14,y);doc.setFont(undefined,'normal');doc.text((p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' ('+p.horas+'h)',45,y);y+=7;
+  if(fFlag(F,'horario')){doc.setFont(undefined,'bold');doc.text('Horario:',14,y);doc.setFont(undefined,'normal');doc.text((p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' ('+p.horas+'h)',45,y);y+=7;}
   if(p.trabajo){doc.setFont(undefined,'bold');doc.text('Trabajo:',14,y);y+=5;doc.setFont(undefined,'normal');doc.setFontSize(9);var lines=doc.splitTextToSize(p.trabajo,182);doc.text(lines,14,y);y+=lines.length*5+4;}
   if(conImp){
     y+=4;doc.setDrawColor(200);doc.line(14,y,196,y);y+=6;
@@ -1314,7 +1315,7 @@ function exportDiaImagenPorId(id,conImp,parteDirecto,F){
     +'<div style="font-size:12px;margin-top:3px">'+p.fecha.split('-').reverse().join('.')+' - '+p.dia+' | '+p.nombre+' | Talleres Montiel S.L.</div>'
     +'</div>'
     +'<div style="margin-bottom:8px"><strong>Lugar:</strong> '+(p.lugar||'-')+'</div>'
-    +'<div style="margin-bottom:8px"><strong>Horario:</strong> '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' ('+p.horas+'h)</div>';
+    +(fFlag(F,'horario')?'<div style="margin-bottom:8px"><strong>Horario:</strong> '+(p.hinicio||'')+(p.hfin?' - '+p.hfin:'')+' ('+p.horas+'h)</div>':'');
   if(p.trabajo) content+='<div style="margin-bottom:12px;padding:8px;background:#f5f5f3;border-radius:6px;font-size:13px;white-space:pre-wrap">'+p.trabajo+'</div>';
   if(conImp){
     var _filas='';
