@@ -52,7 +52,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#185FA5}
 .importe-box{background:#E6F1FB;border:1px solid #378ADD;border-radius:6px;padding:.875rem 1rem;margin-top:.75rem}
 .importe-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0;color:#185FA5}
 .importe-total{font-size:22px;font-weight:600;color:#185FA5}
-.parte-card{background:#fff;border:1px solid #d3d1c7;border-radius:10px;padding:.75rem 1rem;margin-bottom:.5rem;display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:start}
+.parte-card{background:#fff;border:1px solid #d3d1c7;border-radius:10px;padding:.75rem 1rem;margin-bottom:.5rem;display:grid;grid-template-columns:auto 1fr auto;gap:.75rem;align-items:start;content-visibility:auto;contain-intrinsic-size:auto 110px}
 .parte-fecha{font-size:11px;font-weight:600;color:#185FA5;white-space:nowrap}
 .parte-desc{font-size:12px;color:#5f5e5a;line-height:1.55;white-space:pre-wrap}
 hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
@@ -98,7 +98,7 @@ hr{border:none;border-top:1px solid #d3d1c7;margin:.65rem 0}
 <h1>&#x1F4C5; Parte Diario de Trabajo &mdash; FRAN (CH&Oacute;FER)</h1>
 <div class="sub">
   <span>Talleres Montiel S.L. &middot; 2024&ndash;2026 &middot; <strong id="total-count">500</strong> partes</span>
-  <span id="build-marca" style="font-size:10px;font-weight:700;color:#185FA5">build-20261102-nube1</span>
+  <span id="build-marca" style="font-size:10px;font-weight:700;color:#185FA5">build-20261124-lista1</span>
   <span id="nube-estado" style="font-size:11px;font-weight:600"></span>
   <button onclick="exportBackup()">&#x2B07; Backup JSON</button>
   <button class="ghost" onclick="document.getElementById('imp-file').click()">&#x2B06; Importar JSON</button>
@@ -739,7 +739,7 @@ function renderPartes(){
   }).slice().reverse();
   if(!lista.length){c.innerHTML='<div class="empty">Sin partes para este filtro.</div>';return;}
   var curMes='';
-  c.innerHTML=lista.map(function(p){
+  var _items=lista.map(function(p){
     var imp=calcImporte(p);var m=p.fecha.slice(0,7);
     var header='';
     if(m!==curMes){curMes=m;var parts=m.split('-').map(Number);header='<div class="mes-header">\uD83D\uDCC5 '+MESES_N[parts[1]-1]+' '+parts[0]+'</div>';}
@@ -773,8 +773,21 @@ function renderPartes(){
       +'<button class="btn btn-ghost" onclick="editarParte('+p.id+')" style="font-size:11px;padding:3px 8px">\u270F Editar</button>'
       +'<button class="btn-danger" onclick="deleteParte('+p.id+')">\u2715</button>'
       +'</div></div>';
-  }).join('');
+  });
+  /* Se pinta por tandas para que el móvil no se quede colgado con muchos partes (se ve igual). */
+  var _tok=(window._rpTok=(window._rpTok||0)+1);
+  c.innerHTML=_items.slice(0,25).join('');
+  if(_items.length>25){
+    var _pos=25;
+    (function paso(){
+      if(_tok!==window._rpTok)return;
+      c.insertAdjacentHTML('beforeend',_items.slice(_pos,_pos+25).join(''));
+      _pos+=25;
+      if(_pos<_items.length)setTimeout(paso,30);
+    })();
+  }
 }
+
 
 // ===== CALCULAR RANGO =====
 function addPrecio(desg,campo,cantidad,precio){
@@ -1421,14 +1434,39 @@ function nEstado(txt,color){
 }
 function nError(m){var e=new Error(m);e.humano=true;return e;}
 function nGuardaSesion(j){nPon('pd_sb_sesion',{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+(j.expires_in||3600)*1000});}
+var _nRefrescando=null;
+async function nRefrescaCon(refresh){
+  var c=nConf();
+  return fetch(c.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:refresh})});
+}
 async function nToken(){
   var s=nSesion(),c=nConf();
   if(!s)throw nError('Hay que volver a entrar con la contraseña.');
   if(Date.now()<s.exp-60000)return s.access;
-  var r=await fetch(c.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:c.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh})});
-  if(!r.ok){localStorage.removeItem('pd_sb_sesion');throw nError('La sesión ha caducado. Vuelve a entrar con la contraseña.');}
-  nGuardaSesion(await r.json());
-  return nSesion().access;
+  /* Una sola renovación a la vez: dos a la vez con la misma clave hacen que Supabase cierre la sesión. */
+  if(_nRefrescando)return _nRefrescando;
+  _nRefrescando=(async function(){
+    try{
+      var usado=s.refresh;
+      var r=await nRefrescaCon(usado);
+      if(!r.ok){
+        /* Otra pestaña puede haber renovado ya: se usa su sesión antes de darla por perdida. */
+        await new Promise(function(ok){setTimeout(ok,1500);});
+        var n=nSesion();
+        if(n&&n.refresh!==usado){
+          if(Date.now()<n.exp-60000)return n.access;
+          r=await nRefrescaCon(n.refresh);
+        }
+        if(!r.ok){
+          if(r.status===400||r.status===401){localStorage.removeItem('pd_sb_sesion');throw nError('La sesión ha caducado. Vuelve a entrar con la contraseña.');}
+          throw nError('Supabase no responde (error '+r.status+').');
+        }
+      }
+      nGuardaSesion(await r.json());
+      return nSesion().access;
+    }finally{_nRefrescando=null;}
+  })();
+  return _nRefrescando;
 }
 async function nApi(ruta,op){
   op=op||{};
